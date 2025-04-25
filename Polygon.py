@@ -2,11 +2,19 @@ import pymunk as pm
 import pygame as pg
 from pymunk import Vec2d
 import math
+import sys
+import os
 
+def load_resource(path):
+    """Gets the absolute path to a resource, handling both bundled and unbundled."""
+    if hasattr(sys, '_MEIPASS'):
+        return os.path.join(sys._MEIPASS, path)
+    else:
+        return os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
 
 class Polygon():
 
-    def __init__(self, pos, length, height, space, life, mass=5.0):
+    def __init__(self, pos, length, height, space, life, element_type, mass=5.0):
         moment = 1000
         body = pm.Body(mass, moment)
         body.position = Vec2d(*pos)
@@ -21,20 +29,24 @@ class Polygon():
         self.length = length  # Store the physical dimensions
         self.height = height
         self.life = life
+        self.element_type = element_type
+        self.original_image = None
+        self.load_image()
 
-        wood1 = pg.image.load("./resources/images/wood.png").convert_alpha()
-        wood2 = pg.image.load("./resources/images/wood1.png").convert_alpha()
-
+    def load_image(self):
+        wood1 = pg.image.load(load_resource("./resources/images/wood.png")).convert_alpha()
         wod1 = pg.Rect(22, 378, 30, 120)
         wod2 = pg.Rect(24, 502, 30, 120)
 
-        self.original_beam_image = wood1.subsurface(wod1).copy()
-        self.original_column_image = wood1.subsurface(wod2).copy()
+        if self.element_type == "beams":
+            self.original_image = wood1.subsurface(wod1).copy()
+        elif self.element_type == "columns":
+            self.original_image = wood1.subsurface(wod2).copy()
 
     def to_pygame(self, p):
         return (int(p.x), int(-p.y + 600))
 
-    def draw_poly(self, element, screen):
+    def draw_poly(self, screen):
         poly = self.shape
         ps = poly.get_vertices()
         ps.append(ps[0])
@@ -42,28 +54,13 @@ class Polygon():
         ps = list(ps)
         pg.draw.lines(screen, (255, 0, 0), True, ps)
 
-        if element == "beams":
+        if self.original_image:
             p = poly.body.position
             p = Vec2d(*self.to_pygame(p))
 
-            # Resize the beam image to match the physical dimensions
-            scaled_beam_image = pg.transform.scale(self.original_beam_image, (int(self.length), int(self.height)))
-
+            scaled_image = pg.transform.scale(self.original_image, (int(self.length), int(self.height)))
             angle_degrees = math.degrees(poly.body.angle) + 180
-            rotated_logo_image = pg.transform.rotate(scaled_beam_image, angle_degrees)
-            offset = Vec2d(*rotated_logo_image.get_size()) / 2
+            rotated_image = pg.transform.rotate(scaled_image, angle_degrees)
+            offset = Vec2d(*rotated_image.get_size()) / 2
             p = p - offset
-            screen.blit(rotated_logo_image, (p.x, p.y))
-
-        if element == "columns":
-            p = poly.body.position
-            p = Vec2d(*self.to_pygame(p))
-
-            # Resize the column image to match the physical dimensions
-            scaled_column_image = pg.transform.scale(self.original_column_image, (int(self.length), int(self.height)))
-
-            angle_degrees = math.degrees(poly.body.angle) + 180
-            rotated_logo_image = pg.transform.rotate(scaled_column_image, angle_degrees)
-            offset = Vec2d(*rotated_logo_image.get_size()) / 2
-            p = p - offset
-            screen.blit(rotated_logo_image, (p.x, p.y))
+            screen.blit(rotated_image, (p.x, p.y))

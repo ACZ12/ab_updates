@@ -15,7 +15,7 @@ class Level():
         self.columns = columns
         self.beams = beams
         self.space = space
-        self.number = 0
+        self.number = 1
         self.number_of_birds = 4
         self.bool_space = False
         self.locked = ["","","build_2","build_3","build_4","build_5","","",""]
@@ -51,23 +51,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp, "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns"))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns"))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns"))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space, wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space, wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space, wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space, wood_hp , "beams"))
 
 
         if self.bool_space:
@@ -88,23 +88,23 @@ class Level():
         # create beam and column
 
         p = (900,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp, "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -123,23 +123,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (900,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -159,23 +159,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
 
 
         p = (900,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -195,23 +195,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
 
 
         p = (980,250)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -232,23 +232,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
         
         p = (810,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
 
         self.number_of_birds = 4
         if self.bool_space:
