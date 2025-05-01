@@ -199,12 +199,8 @@ def main():
             "Kein WLAN",
             "Keine WLAN-Verbindung verfügbar. Die Anwendung wird ohne Update-Prüfung gestartet.",
         )
+        game.main_loop()
 
-    # Hier beginnt der restliche Code deines Spiels
-    print("Starte dein Spiel...")
-    # Füge hier den Code ein, der dein Spiel startet und ausführt
-    #game.py
-    print("game started")
     
 if __name__ == "__main__":
     main()
