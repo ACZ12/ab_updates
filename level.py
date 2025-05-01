@@ -39,6 +39,7 @@ class Level():
 
     def build_1(self):
         # level 0
+        self.number = 1
         locked = False
         pig1 = Pig(800,130,self.space)
         pig2 = Pig(980,130,self.space)
@@ -78,12 +79,13 @@ class Level():
 
     def build_2(self):
         # level 1
+        self.number = 2
         locked = True
-        pig1 = Pig(980,230,self.space)
-        pig2 = Pig(985,130,self.space)
-
+        pig1 = Pig(800,230,self.space)
+        #pig2 = Pig(985,130,self.space)
+        
         self.pigs.append(pig1)
-        self.pigs.append(pig2)
+        #self.pigs.append(pig2)
 
         # create beam and column
 
@@ -113,6 +115,7 @@ class Level():
     
     def build_3(self):
         # level 2
+        self.number = 3
         locked = True
         pig1 = Pig(980,230,self.space)
         pig2 = Pig(985,130,self.space)
@@ -149,6 +152,7 @@ class Level():
     
     def build_4(self):
         # level 3
+        self.number = 4
         locked = True
         pig1 = Pig(980,230,self.space)
         pig2 = Pig(985,130,self.space)
@@ -185,6 +189,7 @@ class Level():
     
     def build_5(self):
         # level 4
+        self.number = 5
         locked = True
         pig1 = Pig(980,230,self.space)
         pig2 = Pig(985,130,self.space)
@@ -221,6 +226,7 @@ class Level():
     
     def build_6(self):
         # level 5
+        self.number = 6
         locked = True
         pig1 = Pig(980,230,self.space)
         pig1.life = 40
@@ -228,6 +234,7 @@ class Level():
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
+        
 
         # create beam and column
 

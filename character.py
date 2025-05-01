@@ -4,6 +4,7 @@ import pymunk as pm
 from pymunk import Vec2d
 import time
 
+
 class Bird():
     
     def __init__(self,distance,angle,x,y,space):
@@ -47,4 +48,5 @@ class Pig():
         space.add(self.body, self.shape) # Korrigierte Zeile
         self.body = self.body
         self.shape = self.shape
+        
         

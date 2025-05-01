@@ -16,8 +16,10 @@ def check_wifi_available():
     try:
         # Versuche, eine Verbindung zu einem bekannten Host herzustellen (Google)
         urllib.request.urlopen("https://www.google.com", timeout=5)
+        print("yes wifi")
         return True
     except:
+        print("no wifi")
         return False
 
 def get_latest_version(github_pages_url):
@@ -32,6 +34,7 @@ def get_latest_version(github_pages_url):
         str: Die neueste Versionsnummer oder None bei Fehler.
     """
     version_file_url = f"{github_pages_url}/version.txt"
+    print(version_file_url)
     try:
         with urllib.request.urlopen(version_file_url) as response:
             latest_version = response.read().decode().strip()
@@ -133,8 +136,14 @@ def main():
     Hauptfunktion deines Spiels, inklusive Update-Prüfung.
     """
     # Konfiguration
-    github_pages_url = "https://github.com/ACZ12/ab_updates"  # Ändern!
-    current_version = "1.0.0"  # Aktuelle Version deiner Anwendung
+    print("main func gestartet")
+    github_pages_url = "https://acz12.github.io/ab_updates/"  # Ändern!
+    
+    with open("version.txt","r") as f:
+        
+        current_version = f.read() # Aktuelle Version deiner Anwendung
+        
+        
     app_name = "game.py"  # Name deiner ausführbaren Datei oder Startskripts # Ändern!
 
     # Tkinter root für die Messagebox erstellen, aber nicht anzeigen
@@ -169,7 +178,7 @@ def main():
                                 "Update erfolgreich",
                                 "Die Anwendung wird aktualisiert und neu gestartet.",
                             )
-                            #restart_application(app_name)
+                            restart_application(app_name)
                         else:
                             cleanup_temp_files(temp_dir)
                             messagebox.showerror(
