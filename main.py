@@ -116,11 +116,7 @@ def restart_application(app_name):
         app_name (str): Der Name der ausführbaren Datei der Anwendung.
     """
     try:
-        if sys.platform.startswith("win"):
-            subprocess.Popen([sys.executable, app_name])  # Verwende sys.executable
-        else:
-            subprocess.Popen(["python3", app_name]) #TODO: check if this works for other OS
-        sys.exit()
+        game.main_loop()
     except Exception as e:
         print(f"Fehler beim Neustart der Anwendung: {e}")
         # Zeige eine Meldung an, wenn der Neustart fehlschlägt
@@ -189,10 +185,13 @@ def main():
                          cleanup_temp_files(temp_dir)
                 else:
                     print("Benutzer hat das Update abgelehnt.")
+                    game.main_loop()
             else:
                 print("Die Anwendung ist auf dem neuesten Stand.")
+                game.main_loop()
         else:
             print("Fehler beim Überprüfen auf Updates.")
+            game.main_loop()
     else:
         print("Keine WLAN-Verbindung verfügbar. Update-Prüfung übersprungen.")
         messagebox.showinfo(
