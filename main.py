@@ -116,7 +116,11 @@ def restart_application(app_name):
         app_name (str): Der Name der ausführbaren Datei der Anwendung.
     """
     try:
-        game.main_loop()
+        if sys.platform.startswith("win"):
+            subprocess.Popen([sys.executable, app_name])  # Verwende sys.executable
+        else:
+            subprocess.Popen(["python3", app_name]) #TODO: check if this works for other OS
+        sys.exit()
     except Exception as e:
         print(f"Fehler beim Neustart der Anwendung: {e}")
         # Zeige eine Meldung an, wenn der Neustart fehlschlägt
