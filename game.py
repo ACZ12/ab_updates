@@ -6,13 +6,14 @@ import pygame as pg
 import time
 import pymunk as pm
 from level import Level
-from character import Bird
+import character as ch
 from pygame.locals import *
 import msal
 import requests
 import zipfile
 import shutil
 import json
+from pymunk import Vec2d
 
 # GLOBALS
 sling_anchor = (130, 380)
@@ -23,6 +24,8 @@ balls = []
 polys = []
 beams = []
 columns = []
+circles = []
+triangles = []
 poly_points = []
 ball_num = 0
 polys_dict = {}
@@ -78,6 +81,8 @@ def main_loop():
     global polys
     global beams
     global columns
+    global circles
+    global triangles
     global poly_points
     global ball_num
     global polys_dict
@@ -132,7 +137,7 @@ def main_loop():
     bold_font3 = pg.font.SysFont("arial", 50, bold=True)
     
     bird_scale_factor = 0.3
-    pig_scale_factor = 0.2
+    pig_scale_factor = 1
     star13_scale_factor = 0.5
     star2_scale_factor = 1
 
@@ -241,6 +246,7 @@ def main_loop():
 
     glorbo = pg.image.load(load_resource("./resources/images/glorbo.png")).convert_alpha()
     liri = pg.image.load(load_resource("./resources/images/liri.png")).convert_alpha()
+    liri = pg.transform.scale(liri,(liri.get_width()*0.1,liri.get_height()*0.1))
 
     patapim_full = pg.image.load(load_resource("./resources/images/patapim_full.png")).convert_alpha()
     patapim_leg1 = pg.image.load(load_resource("./resources/images/patapim_leg1.png")).convert_alpha()
@@ -358,8 +364,13 @@ def main_loop():
             y_sahur = pu[1] - sahur.get_height() // 2
 
             if level.number_of_birds > 0:
-
-                screen.blit(sahur, (x_sahur, y_sahur))
+                
+                if level.level_birds[-1] == "sahur":
+                    print("sahur in sling")
+                    screen.blit(sahur, (x_sahur, y_sahur))
+                elif level.level_birds[-1] == "liri":
+                    print("liri in sling")
+                    screen.blit(liri, (x_sahur, y_sahur))
 
                 pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
 
@@ -394,7 +405,7 @@ def main_loop():
 
         angle = math.atan2(dy, dx)
         launch_angle = angle
-        print(f"launch_angle in sling_action: {math.degrees(launch_angle)}")
+        #print(f"launch_angle in sling_action: {math.degrees(launch_angle)}")
         
     def restart():
         global mouse_pressed_to_shoot, restart_counter
@@ -404,6 +415,8 @@ def main_loop():
         birds_to_remove = []
         columns_to_remove = []
         beams_to_remove = []
+        circles_to_remove = []
+        triangles_to_remove = []
 
         for pig in pigs:
             pigs_to_remove.append(pig)
@@ -429,6 +442,18 @@ def main_loop():
         for beam in beams_to_remove:
             space.remove(beam.shape, beam.shape.body)
             beams.remove(beam)
+            
+        for circle in circles:
+            circles_to_remove.append(circle)
+        for circle in circles_to_remove:
+            space.remove(circle.shape, circle.shape.body)
+            circles.remove(circle)
+
+        for triangle in triangles:
+            triangles_to_remove.append(triangle)
+        for triangle in triangles_to_remove:
+            space.remove(triangle.shape, triangle.shape.body)
+            triangles.remove(triangle)
 
     def post_solve_bird_pig(arbiter, space, _):
         a, b = arbiter.shapes
@@ -454,7 +479,7 @@ def main_loop():
 
     def post_solve_pig_wood(arbiter, space, _):
         pig_to_remove = []
-        if arbiter.total_impulse.length > 4000:
+        if arbiter.total_impulse.length > 2000:
             pig_shape, wood_shape = arbiter.shapes
             for pig in pigs:
                 if pig.shape == pig_shape:
@@ -477,7 +502,7 @@ def main_loop():
         momentum_damage_factor = 0.013
         damage = base_damage + (bird_momentum * momentum_damage_factor)
 
-        for wood in beams + columns:
+        for wood in beams + columns + circles + triangles:
             if wood.body == wood_body:
                 damage_threshold = 1000
                 damage_factor = 0.03
@@ -490,10 +515,14 @@ def main_loop():
                             beams.remove(wood)
                         elif wood in columns:
                             columns.remove(wood)
+                        elif wood in circles:
+                            circles.remove(wood)
+                        elif wood in triangles:
+                            triangles.remove(wood)
                         global score
                         score += 5000
                 impact_velocity_reduction_threshold = 3000
-                velocity_reduction_factor = 0.1
+                velocity_reduction_factor = 0.3
                 if arbiter.total_impulse.length > impact_velocity_reduction_threshold:
                     bird_body.velocity *= (1 - velocity_reduction_factor)
 
@@ -514,7 +543,7 @@ def main_loop():
     # 4:win
     # 6:levels menu
     # Create and load the first level with the correct arguments
-    level = Level(pigs, columns, beams, space)
+    level = Level(pigs, columns, beams, circles, triangles, space)
     level.load_level()
 
    
@@ -550,21 +579,29 @@ def main_loop():
                             sx, sy = sling_anchor
 
                             impulse_factor = 10.0
-                            print(mouse_distance, impulse_factor, math.sin(launch_angle))
+                            #print(mouse_distance, impulse_factor, math.sin(launch_angle))
                             
                             
                             impulse_x = -mouse_distance * impulse_factor * math.cos(launch_angle)
                             impulse_y = mouse_distance * impulse_factor * math.sin(launch_angle)
-                            print(f"Impuls: {impulse_x}, {impulse_y}")
-                            print(f"Abschusswinkel: {math.degrees(launch_angle)}")
-                            print(f"Abschussdistanz: {mouse_distance}")
+                            #print(f"Impuls: {impulse_x}, {impulse_y}")
+                            #print(f"Abschusswinkel: {math.degrees(launch_angle)}")
+                            #print(f"Abschussdistanz: {mouse_distance}")
 
                             bird_x = sx
                             bird_y = sy - 150
-
-                            bird = Bird(mouse_distance, launch_angle, bird_x, bird_y, space)
-                            birds.append(bird)
-                            bird_path = []
+                            print(level.level_birds)
+                            if level.level_birds[-1] == "sahur":
+                                bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space)
+                                birds.append(bird)
+                                bird_path = []
+                                level.level_birds.pop()
+                            elif level.level_birds[-1] == "liri":
+                                bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space)
+                                birds.append(bird)
+                                bird_path = []
+                                level.level_birds.pop()
+                                
 
                             if level.number_of_birds == 0:
                                 t2 = time.time()
@@ -681,11 +718,27 @@ def main_loop():
                 mouse_pressed_to_shoot = True
 
             screen.blit(slingr, (120, 370))
-            if level.number_of_birds > 0:
-                for i in range(level.number_of_birds - 1):
-                    x = 100 - (i * 35)
-                    screen.blit(sahur, (x, 446))
+            if game_state == 0:
+                menu_open = False
+                screen.fill((130, 200, 100))
+                bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
+                screen.blit(bg_scaled, (0, 0))
 
+                x_mouse, y_mouse = pg.mouse.get_pos()
+                if pg.mouse.get_pressed()[0] and (110 < x_mouse < 170 and 250 < y_mouse < 400):
+                    mouse_pressed_to_shoot = True
+
+                screen.blit(slingr, (120, 370))
+                if level.number_of_birds > 0:
+                    for i in range(level.number_of_birds - 1):
+                        x = 100-i*35#level.number_of_birds-10*(-(len(level.level_birds+2*i)%level.number_of_birds))+i*35#level.number_of_birds*35 + (i * 35)
+
+                        print(level.level_birds)
+                        if level.level_birds[i] == "sahur":
+                            screen.blit(sahur, (x, 446))
+                        elif level.level_birds[i] == "liri":
+                            print("liririirlariari!!!")
+                            screen.blit(liri, (x-10, 435))
             if mouse_pressed_to_shoot and level.number_of_birds >= 0:
                 sling_action()
             else:
@@ -738,16 +791,56 @@ def main_loop():
                 pg.draw.lines(screen, TRANSP, False, [p1, p2])
 
             for pig in pigs:
+                #print(pig,type)
                 pig_to_remove = []
+                pigg=pig
                 pig = pig.shape
                 p = to_pygame(pig.body.position)
                 x, y = p
                 angle_degree = math.degrees(pig.body.angle)
-                img = pg.transform.rotate(n11, angle_degree)
-                w, h = img.get_size()
-                x -= w * 0.5
-                y -= h * 0.5
-                screen.blit(img, (x, y))
+                
+                if pigg.type == "n11":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n11,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n12,(pigg.radius*2,pigg.radius*2))
+                
+                elif pigg.type == "n21":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n21,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n22,(pigg.radius*2,pigg.radius*2))
+                        
+                elif pigg.type == "n31":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n31,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n32,(pigg.radius*2,pigg.radius*2))
+                        
+                elif pigg.type == "n41":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n41,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n42,(pigg.radius*2,pigg.radius*2))
+                        
+                if pigg.type == "n51":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n51,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
+                
+                pig_img = pg.transform.rotate(pig_img, angle_degree)
+
+                # Calculate the bounding box of the *original* image, not the rotated one
+                width, height = pig_img.get_size() # Use the size of the *original* image
+
+                rotated_image = pg.transform.rotate(pig_img, angle_degree)
+                
+                offset = Vec2d(*rotated_image.get_size()) / 2
+                #print("offset: ",offset)
+                x -= offset[0]
+                y -= offset[1]
+                screen.blit(rotated_image, (x, y))
                 pg.draw.circle(screen, BLUE, p, int(pig.radius), 2)
                 if (pig.body.position.y < 0 or pig.body.position.x < -50 or
                         pig.body.position.x > screen_width + 50):
@@ -755,10 +848,16 @@ def main_loop():
                 
                     
             for column in columns:
-                column.draw_poly(screen)
+                column.draw_poly(screen,column.shape)
 
             for beam in beams:
-                beam.draw_poly(screen)
+                beam.draw_poly(screen,beam.shape)
+                
+            for circle in circles:
+                circle.draw_poly(screen,circle.shape)
+                
+            for triangle in triangles:
+                triangle.draw_poly(screen,triangle.shape)
 
             dt = 1.0 / 50.0 / 2.0
             for x in range(2):

@@ -28,16 +28,25 @@ class Bird():
         self.body = body
         self.shape = shape
         self.launch_time = time.time()
-        self.lifespan = 5
+        self.lifespan = 7
+        
+class Sahur(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        
+class Liri(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        
         
         
 class Pig():
 
-    def __init__(self,x,y,space):
-
-        self.life = 20
+    def __init__(self,x,y,space,radius,type):
+        self.type = type
+        self.life = 50
         self.mass = 5
-        self.radius = 14
+        self.radius = radius
         inertia = pm.moment_for_circle(self.mass,0,self.radius,(0,0))
         self.body = pm.Body(self.mass,inertia)
         self.body.position = x, y
