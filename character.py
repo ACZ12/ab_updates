@@ -3,12 +3,14 @@
 import pymunk as pm
 from pymunk import Vec2d
 import time
+import pygame as pg
 
 
 class Bird():
     
     def __init__(self,distance,angle,x,y,space):
         
+        pg.display.init()
         self.life = 20
         mass = 5
         radius = 15
@@ -21,8 +23,8 @@ class Bird():
         angle = -angle
         body.apply_impulse_at_local_point(impulse.rotated(angle))
         shape = pm.Circle(body,radius,(0,0))
-        shape.elasticity = 0.6
-        self.friction = 0.75
+        shape.elasticity = 0.5
+        self.friction = 0.95
         shape.collision_type = 0
         space.add(body,shape)
         self.body = body
@@ -33,10 +35,20 @@ class Bird():
 class Sahur(Bird):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+    img = "./resources/images/sahur.png"
+    scale = (30,30)
         
 class Liri(Bird):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+    img = "./resources/images/liri.png"
+    scale = (30,30)
+    
+class Palocleves(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+    img = "./resources/images/palocleves.png"
+    scale = (50,50)
         
         
         

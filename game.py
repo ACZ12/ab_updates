@@ -16,6 +16,8 @@ import json
 from pymunk import Vec2d
 
 # GLOBALS
+bird = None
+bird_img = None
 sling_anchor = (130, 380)
 x_mouse,y_mouse = 0,0
 pigs = []
@@ -72,6 +74,8 @@ wall = False
 def main_loop():
     
     # GLOBALS
+    global bird_img
+    global bird
     global sling_anchor
     global x_mouse
     global y_mouse
@@ -363,14 +367,10 @@ def main_loop():
 
             y_sahur = pu[1] - sahur.get_height() // 2
 
-            if level.number_of_birds > 0:
+            if len(level.level_birds) >= 0:
                 
-                if level.level_birds[-1] == "sahur":
-                    print("sahur in sling")
-                    screen.blit(sahur, (x_sahur, y_sahur))
-                elif level.level_birds[-1] == "liri":
-                    print("liri in sling")
-                    screen.blit(liri, (x_sahur, y_sahur))
+                
+                screen.blit(bird_img, (x_sahur, y_sahur))
 
                 pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
 
@@ -386,9 +386,9 @@ def main_loop():
 
             y_sahur = my - sahur.get_height() // 2 # Center bird on mouse
 
-            if level.number_of_birds > 0:
+            if len(level.level_birds) >= 0:
 
-                screen.blit(sahur, (x_sahur, y_sahur))
+                screen.blit(bird_img, (x_sahur, y_sahur))
 
                 pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), (mx, my), 5)
 
@@ -546,10 +546,25 @@ def main_loop():
     level = Level(pigs, columns, beams, circles, triangles, space)
     level.load_level()
 
+    def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space):
+        global bird
+        bird = level.level_birds[-1]
+        if bird == "sahur":
+            bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space)
+        elif bird == "liri":
+            bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space)
+        elif bird == "palocleves":
+            bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space)
+        return bird
+    
+    def get_next_bird_img():
+        pass
    
     while running:
+        
         stop_button_rect = stop_button.get_rect(topleft=(8, 8))
         mouse_button_down = False  # Flag to track if mouse button is pressed
+        
 
         for event in pg.event.get():
             if event.type == pg.QUIT:
@@ -573,7 +588,7 @@ def main_loop():
                         pu = (140, 420)
                         mouse_pressed_to_shoot = False
 
-                        if level.number_of_birds > 0:
+                        if level.number_of_birds >= 0:
                             level.number_of_birds -= 1
                             t1 = time.time() * 1000
                             sx, sy = sling_anchor
@@ -591,16 +606,11 @@ def main_loop():
                             bird_x = sx
                             bird_y = sy - 150
                             print(level.level_birds)
-                            if level.level_birds[-1] == "sahur":
-                                bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space)
-                                birds.append(bird)
-                                bird_path = []
-                                level.level_birds.pop()
-                            elif level.level_birds[-1] == "liri":
-                                bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space)
-                                birds.append(bird)
-                                bird_path = []
-                                level.level_birds.pop()
+                            bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space)
+                            
+                            birds.append(bird)
+                            bird_path = []
+                            level.level_birds.pop()
                                 
 
                             if level.number_of_birds == 0:
@@ -708,6 +718,11 @@ def main_loop():
                             levels_drawn = False
 
         if game_state == 0:
+            try:
+                bird_img = pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[-1]}.png")).convert_alpha(),(30,30))
+            except IndexError as e:
+                pass
+                
             menu_open = False
             screen.fill((130, 200, 100))
             bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
@@ -729,24 +744,25 @@ def main_loop():
                     mouse_pressed_to_shoot = True
 
                 screen.blit(slingr, (120, 370))
-                if level.number_of_birds > 0:
-                    for i in range(level.number_of_birds - 1):
-                        x = 100-i*35#level.number_of_birds-10*(-(len(level.level_birds+2*i)%level.number_of_birds))+i*35#level.number_of_birds*35 + (i * 35)
-
-                        print(level.level_birds)
-                        if level.level_birds[i] == "sahur":
-                            screen.blit(sahur, (x, 446))
-                        elif level.level_birds[i] == "liri":
-                            print("liririirlariari!!!")
-                            screen.blit(liri, (x-10, 435))
+                
+                # birds behind sling
+            if level.number_of_birds > 0:
+                for i in range(level.number_of_birds):
+                    
+                    bird_type = level.level_birds[i]
+                    try:
+                        bird_behind_img = pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{bird_type}.png")).convert_alpha(),(30,30))
+                        x_position = 100 - i * 35
+                        screen.blit(bird_behind_img, (x_position, 435))
+                    except FileNotFoundError:
+                        print(f"Error: Bird image not found for {bird_type}")
             if mouse_pressed_to_shoot and level.number_of_birds >= 0:
                 sling_action()
+            elif level.number_of_birds >= 0:
+                screen.blit(pg.transform.scale(bird_img, (30,30)), (130, 370))
             else:
-                if time.time() * 1000 - t1 > 300 and level.number_of_birds > 0:
-                    screen.blit(sahur, (130, 370))
-                else:
-                    pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
-                    pg.draw.line(screen, (0, 0, 0), (slingl_x + 2, slingl_y + 13), pu, 5)
+                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
+                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2, slingl_y + 13), pu, 5)
 
             bird_to_remove = []
             pig_to_remove = []
@@ -756,7 +772,7 @@ def main_loop():
                 x, y = p
                 blit_x = x - sahur.get_width() // 2
                 blit_y = y - sahur.get_height() // 2
-                screen.blit(sahur, (blit_x, blit_y))
+                screen.blit(pg.transform.scale(pg.image.load(load_resource(bird.img)).convert_alpha(),(30,30)), (blit_x, blit_y))
                 pg.draw.circle(screen, BLUE, p, int(bird.shape.radius), 2)
                 bird_path.append(p)
                 if (bird.shape.body.position.y < 0 or bird.shape.body.position.x < -50 or
@@ -880,7 +896,7 @@ def main_loop():
                 game_state = 4
                 restart_counter = True
 
-            if level.number_of_birds == 0 and pigs and not birds:
+            if level.number_of_birds < 0 and pigs and not birds:
                 game_state = 3
 
         elif game_state == 5:

@@ -9,8 +9,18 @@ ice_hp = 10
 
 class Level():
     
-    def __init__(self,pigs,columns,beams,circles,triangles,space):
+    def __init__(self, pigs, columns, beams, circles, triangles, space):
+        """
+        Initializes a Level object.
 
+        Args:
+            pigs (list): List to store Pig objects.
+            columns (list): List to store Polygon objects representing columns.
+            beams (list): List to store Polygon objects representing beams.
+            circles (list): List to store Polygon objects representing circles.
+            triangles (list): List to store Polygon objects representing triangles.
+            space: The space object.
+        """
         self.pigs = pigs
         self.columns = columns
         self.beams = beams
@@ -18,9 +28,9 @@ class Level():
         self.triangles = triangles
         self.space = space
         self.number = 1
-        #self.number_of_birds = 4
+        self.number_of_birds = 4
         self.bool_space = False
-        self.locked = ["","","build_2","build_3","build_4","build_5","","",""]
+        self.locked = ["","","build_2","build_3","build_4","build_5","build_6","build_7","build_8"] # Corrected indexing to start from 0
         
         # lower limit
         self.one_star = 20000
@@ -40,17 +50,16 @@ class Level():
         self.number_of_birds = 4  # Reset the number of birds
 
 
-
     def build_1(self):
-        # level 0
+        """Builds level 1."""
         self.number = 1
-        self.level_birds = ["sahur","liri","sahur","sahur"]
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]
         self.number_of_birds = 5
         locked = False
         pig1 = Pig(400,130,self.space,10,"n11")
-        pig2 = Pig(450,130,self.space,60,"n21")
+        pig2 = Pig(450,130,self.space,12,"n21")
         pig3 = Pig(500,130,self.space,10,"n31")
-        pig4 = Pig(550,130,self.space,60,"n41")
+        pig4 = Pig(550,130,self.space,15,"n41")
         pig5 = Pig(600,130,self.space,10,"n51")
 
         self.pigs.append(pig1)
@@ -80,7 +89,7 @@ class Level():
         self.beams.append(Polygon(p,85,20,self.space,stone_hp , "beams"))
 
 
-       
+        
 
         p = (700,510)
         self.circles.append(Polygon(p,20,20,self.space, wood_hp , "circles"))
@@ -103,10 +112,12 @@ class Level():
 
 
     def build_2(self):
-        # level 1
+        """Builds level 2."""
         self.number = 2
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
+        self.number_of_birds = 5 # added number of birds
         locked = True
-        pig1 = Pig(800,230,self.space,13)
+        pig1 = Pig(800,230,self.space,13, "n11") # Added id
         #pig2 = Pig(985,130,self.space)
         
         self.pigs.append(pig1)
@@ -139,11 +150,13 @@ class Level():
     
     
     def build_3(self):
-        # level 2
+        """Builds level 3."""
         self.number = 3
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
+        self.number_of_birds = 5 # added number of birds
         locked = True
-        pig1 = Pig(980,230,self.space,13)
-        pig2 = Pig(985,130,self.space,31)
+        pig1 = Pig(980,230,self.space,13, "n11") # Added id
+        pig2 = Pig(985,130,self.space,31, "n21") # Added id
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -176,11 +189,13 @@ class Level():
     
     
     def build_4(self):
-        # level 3
+        """Builds level 4."""
         self.number = 4
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
+        self.number_of_birds = 5 # added number of birds
         locked = True
-        pig1 = Pig(980,230,self.space,31)
-        pig2 = Pig(985,130,self.space,13)
+        pig1 = Pig(980,230,self.space,31, "n11") # Added id
+        pig2 = Pig(985,130,self.space,13, "n21") # Added id
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -213,11 +228,13 @@ class Level():
     
     
     def build_5(self):
-        # level 4
+        """Builds level 5."""
         self.number = 5
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
+        self.number_of_birds = 5 # added number of birds
         locked = True
-        pig1 = Pig(980,230,self.space,13)
-        pig2 = Pig(985,130,self.space,31)
+        pig1 = Pig(980,230,self.space,13, "n11") # Added id
+        pig2 = Pig(985,130,self.space,31, "n21") # Added id
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -250,12 +267,14 @@ class Level():
     
     
     def build_6(self):
-        # level 5
+        """Builds level 6."""
         self.number = 6
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
+        self.number_of_birds = 5 # added number of birds
         locked = True
-        pig1 = Pig(980,230,self.space,13)
+        pig1 = Pig(980,230,self.space,13, "n11") # Added id
         pig1.life = 40
-        pig2 = Pig(985,130,self.space,31)
+        pig2 = Pig(985,130,self.space,31, "n21") # Added id
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -285,21 +304,95 @@ class Level():
         self.number_of_birds = 4
         if self.bool_space:
             self.number_of_birds = 8
-    
-    
-    
 
+    def build_7(self):
+        """Builds level 7."""
+        self.number = 7
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]  # Added level birds
+        self.number_of_birds = 5
+        locked = True
 
+        # Pigs
+        pig1 = Pig(750, 100, self.space, 15, "n11")
+        pig2 = Pig(850, 100, self.space, 15, "n21")
+        pig3 = Pig(800, 150, self.space, 20, "n31")
+
+        self.pigs.extend([pig1, pig2, pig3])
+
+        # Columns
+        col1 = Polygon((700, 200), 20, 100, self.space, wood_hp, "columns")
+        col2 = Polygon((900, 200), 20, 100, self.space, wood_hp, "columns")
+        col3 = Polygon((700, 350), 20, 100, self.space, stone_hp, "columns")
+        col4 = Polygon((900, 350), 20, 100, self.space, stone_hp, "columns")
+
+        self.columns.extend([col1, col2, col3, col4])
+
+        # Beams
+        beam1 = Polygon((800, 250), 200, 20, self.space, wood_hp, "beams")
+        beam2 = Polygon((800, 400), 200, 20, self.space, stone_hp, "beams")
+
+        self.beams.extend([beam1, beam2])
+
+        # Circles
+        circle1 = Polygon((750, 480), 30, 30, self.space, ice_hp, "circles")
+        circle2 = Polygon((850, 480), 30, 30, self.space, ice_hp, "circles")
+        self.circles.extend([circle1, circle2])
+
+        self.number_of_birds = 4
+        if self.bool_space:
+            self.number_of_birds = 8
+
+    def build_8(self):
+        """Builds level 8."""
+        self.number = 8
+        self.level_birds = ["sahur", "liri", "sahur", "palocleves", "palocleves"]  # Added level birds.
+        self.number_of_birds = 5
+        locked = True
+
+        # Pigs
+        pig1 = Pig(600, 100, self.space, 10, "n11")
+        pig2 = Pig(650, 150, self.space, 12, "n21")
+        pig3 = Pig(700, 100, self.space, 10, "n31")
+        pig4 = Pig(625, 200, self.space, 15, "n41")
+        pig5 = Pig(675, 200, self.space, 15, "n51")
+
+        self.pigs.extend([pig1, pig2, pig3, pig4, pig5])
+
+        # Columns
+        col1 = Polygon((550, 300), 20, 120, self.space, ice_hp, "columns")
+        col2 = Polygon((750, 300), 20, 120, self.space, ice_hp, "columns")
+        col3 = Polygon((650, 450), 20, 100, self.space, stone_hp, "columns")
+
+        self.columns.extend([col1, col2, col3])
+
+        # Beams
+        beam1 = Polygon((650, 350), 200, 20, self.space, wood_hp, "beams")
+        beam2 = Polygon((650, 500), 200, 20, self.space, stone_hp, "beams")
+
+        self.beams.extend([beam1, beam2])
+
+        # Triangles
+        triangle1 = Polygon((575, 250), 20, 20, self.space, wood_hp, "triangles",
+                                triangle_points=[(565, 260), (575, 240), (585, 260)])
+        triangle2 = Polygon((725, 250), 20, 20, self.space, wood_hp, "triangles",
+                                triangle_points=[(715, 260), (725, 240), (735, 260)])
+        self.triangles.extend([triangle1, triangle2])
+
+        self.number_of_birds = 4
+        if self.bool_space:
+            self.number_of_birds = 8
+    
     def load_level(self):
+        """Loads the level based on the current level number."""
         try:
-            build_name = "build_"+str(self.number)
+            build_name = "build_" + str(self.number)
             if hasattr(self, build_name):
                 getattr(self, build_name)()
             else:
-                print(f"Warnung: Level-Build-Methode '{build_name}' nicht gefunden. Lade Standard-Level.")
+                print(f"Warning: Level-Build-Methode '{build_name}' nicht gefunden. Lade Standard-Level.")
                 self.number = 1
-                self.build() # Rufe die 'build()' Methode direkt auf
+                self.build_1()  # Call build_1 to load a default level.  Important!
         except AttributeError as e:
             print(f"Fehler beim Laden des Levels: {e}")
             self.number = 1
-            self.load_level() # Stelle sicher, dass ein Level geladen wird
+            self.load_level() # Recursive call to try loading level 1 if there is an error
