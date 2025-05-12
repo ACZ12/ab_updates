@@ -3,13 +3,14 @@
 from character import Pig
 from Polygon import Polygon
 
+
 wood_hp = 20
 stone_hp = 30
 ice_hp = 10
 
 class Level():
     
-    def __init__(self, pigs, columns, beams, circles, triangles, space):
+    def __init__(self, pigs, columns, beams, circles, triangles, space, screen_height, screen_width):
         """
         Initializes a Level object.
 
@@ -38,6 +39,18 @@ class Level():
         self.three_star = 45000
         
         self.bool_space = False
+        
+        self.screen_height = screen_height
+        self.screen_width = screen_width
+        
+        self.base_width, self.base_height = 1200, 650
+        self.scale_x = self.screen_width / self.base_width
+        self.scale_y = self.screen_height / self.base_height
+    
+    
+
+    def scale_pos(self, x, y):
+        return x * self.scale_x, y * self.scale_y
 
 
     def clear_level(self):
@@ -52,6 +65,7 @@ class Level():
 
     def build_1(self):
         """Builds level 1."""
+
         self.number = 1
         self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]
         self.number_of_birds = 5
@@ -72,38 +86,44 @@ class Level():
 
         # create beam and column
 
-        p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp, "columns"))
+        p = self.scale_pos(950,150)
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp, "columns", self.screen_height, self.screen_width))
         
-        p = (900,150)
-        self.columns.append(Polygon(p,20,85,self.space, ice_hp, "columns"))
+        p = self.scale_pos(900,150)
+        self.columns.append(Polygon(p,20,85,self.space, ice_hp, "columns", self.screen_height, self.screen_width))
         
-        p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns"))
+        p = self.scale_pos(950,260)
+        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns", self.screen_height, self.screen_width))
         
-        p = (900,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
-        p = (800,220)
-        self.beams.append(Polygon(p,85,20,self.space,ice_hp , "beams"))
-        p = (700,220)
-        self.beams.append(Polygon(p,85,20,self.space,stone_hp , "beams"))
+        p = self.scale_pos(900,220)
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
+        p = self.scale_pos(800,220)
+        self.beams.append(Polygon(p,85,20,self.space,ice_hp , "beams", self.screen_height, self.screen_width))
+        p = self.scale_pos(700,220)
+        self.beams.append(Polygon(p,85,20,self.space,stone_hp , "beams", self.screen_height, self.screen_width))
 
 
         
 
-        p = (700,510)
-        self.circles.append(Polygon(p,20,20,self.space, wood_hp , "circles"))
-        p = (600,510)
-        self.circles.append(Polygon(p,20,20,self.space, stone_hp , "circles"))
-        p = (550,510)
-        self.circles.append(Polygon(p,20,20,self.space, ice_hp , "circles"))
+        p = self.scale_pos(700,510)
+        self.circles.append(Polygon(p,20,20,self.space, wood_hp , "circles", self.screen_height, self.screen_width))
+        p = self.scale_pos(600,510)
+        self.circles.append(Polygon(p,20,20,self.space, stone_hp , "circles", self.screen_height, self.screen_width))
+        p = self.scale_pos(550,510)
+        self.circles.append(Polygon(p,20,20,self.space, ice_hp , "circles", self.screen_height, self.screen_width))
         
-        p = (700,310)
-        self.triangles.append(Polygon(p,20,20,self.space, stone_hp , "triangles", triangle_points=[(p[0]-10,p[1]+10),(p[0],p[1]-10),(p[0]+10,p[1]+10)]))
-        p = (500,310)
-        self.triangles.append(Polygon(p,20,20,self.space, ice_hp , "triangles", triangle_points=[(p[0]-10,p[1]+10),(p[0],p[1]-10),(p[0]+10,p[1]+10)]))
-        p = (650,310)
-        self.triangles.append(Polygon(p,20,20,self.space, wood_hp , "triangles", triangle_points=[(p[0]-10,p[1]+10),(p[0],p[1]-10),(p[0]+10,p[1]+10)]))
+        p = self.scale_pos(200,320)
+        self.triangles.append(Polygon(p, 30, 30, self.space, stone_hp, "triangles", self.screen_height, self.screen_width))
+        p = self.scale_pos(200,370)
+        self.triangles.append(Polygon(p, 30, 30, self.space, ice_hp, "triangles", self.screen_height, self.screen_width))
+        p = self.scale_pos(150,350)
+        self.triangles.append(Polygon(p, 30, 30, self.space, wood_hp, "triangles", self.screen_height, self.screen_width))
+        p = self.scale_pos(200,320)
+        self.triangles.append(Polygon(p, 30, 30, self.space, stone_hp, "triangles", self.screen_height, self.screen_width))
+        p = self.scale_pos(200,370)
+        self.triangles.append(Polygon(p, 30, 30, self.space, ice_hp, "triangles", self.screen_height, self.screen_width))
+        p = self.scale_pos(220,350)
+        self.triangles.append(Polygon(p, 30, 30, self.space, wood_hp, "triangles", self.screen_height, self.screen_width))
 
         if self.bool_space:
             self.number_of_birds = 8
@@ -384,6 +404,10 @@ class Level():
     
     def load_level(self):
         """Loads the level based on the current level number."""
+        
+        
+        
+        
         try:
             build_name = "build_" + str(self.number)
             if hasattr(self, build_name):

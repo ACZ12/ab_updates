@@ -8,7 +8,7 @@ import pygame as pg
 
 class Bird():
     
-    def __init__(self,distance,angle,x,y,space):
+    def __init__(self,distance,angle,x,y,space,screen_height, screen_width):
         
         pg.display.init()
         self.life = 20
@@ -31,6 +31,9 @@ class Bird():
         self.shape = shape
         self.launch_time = time.time()
         self.lifespan = 7
+        self.screen_height = screen_height
+        self.screen_width = screen_width
+        
         
 class Sahur(Bird):
     def __init__(self,*args,**kwargs):

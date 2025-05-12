@@ -36,6 +36,7 @@ rope_length = 90
 angle = 90
 launch_angle = 0
 pu = 0
+levels_drawn = False
 
 sound_on = True
 count = 0
@@ -53,8 +54,7 @@ BLACK = (0, 0, 0)
 WHITE = (255, 255, 255)
 TRANSP = (0, 0, 0, 0)
 
-slingl_x, slingl_y = 130, 370
-slingr_x, slingr_y = 145, 380
+
 
 score = 0
 
@@ -68,6 +68,14 @@ bonus_score_once = True
 
 
 wall = False
+
+# Add at the top with other globals
+slingl = None
+slingr = None
+slingl_scaled_width = None
+slingl_scaled_height = None
+slingr_scaled_width = None
+slingr_scaled_height = None
 
 
 
@@ -95,6 +103,7 @@ def main_loop():
     global angle
     global launch_angle
     global pu
+    global slingl, slingr, slingl_scaled_width, slingl_scaled_height, slingr_scaled_width, slingr_scaled_height
 
     global sound_on
     global count
@@ -124,7 +133,8 @@ def main_loop():
     global counter
     global restart_counter
     global bonus_score_once
-
+    global levels_drawn
+    
 
 
     global wall
@@ -135,6 +145,59 @@ def main_loop():
     pg.init()
     screen_width, screen_height = 1200, 650
     screen = pg.display.set_mode((1200, 650), pg.RESIZABLE)
+    
+    screen_width, screen_height = pg.display.get_surface().get_size()
+    base_width, base_height = 1200, 650
+    scale_x = screen_width / base_width
+    scale_y = screen_height / base_height
+    
+    
+
+    def scale_pos(x, y):
+        return x * scale_x, y * scale_y
+
+    def scale_size(width, height):
+        return width * scale_x, height * scale_y
+    
+    sling_anchor = scale_pos(130, 380)
+    
+    # Base positions for sling
+    base_slingl_x, base_slingl_y = 120, 370
+    base_slingr_x, base_slingr_y = 120, 370
+    
+    
+    def get_sling_positions():
+        # Base positions for sling
+        base_slingl_x, base_slingl_y = 120, 370
+        base_slingr_x, base_slingr_y = 120, 370
+        return scale_pos(base_slingl_x, base_slingl_y)
+
+    def handle_resize(event):
+        global slingl, slingr, slingl_scaled_width, slingl_scaled_height, slingr_scaled_width, slingr_scaled_height
+        global levels_drawn
+        nonlocal screen, screen_width, screen_height, scale_x, scale_y
+        
+        # Update screen and scaling factors
+        screen = pg.display.set_mode((event.w, event.h), pg.RESIZABLE)
+        screen_width, screen_height = event.w, event.h
+        scale_x = screen_width / base_width
+        scale_y = screen_height / base_height
+
+        # Redraw the screen immediately after resize
+        screen.fill((130, 200, 100))
+        bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
+        screen.blit(bg_scaled, (0, 0))
+        print("Resizing bg")
+        
+        # Rescale sling images
+        slingl = pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
+        slingr = pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
+        
+        if game_state == 6:
+            print("Resizing levels")
+            levels_drawn = False
+            draw_levels()
+        pg.display.flip()
 
     bold_font = pg.font.SysFont("arial", 20, bold=True)
     bold_font2 = pg.font.SysFont("arial", 30, bold=True)
@@ -234,15 +297,21 @@ def main_loop():
     star3 = pg.transform.scale(star3, (star13_scaled_width, star13_scaled_height))
     star2 = pg.transform.scale(star2, (star2_scaled_width, star2_scaled_height))
 
-    slingr_scaled_width = int(slingr.get_width() * 0.05)
-    slingr_scaled_height = int(slingr.get_height() * 0.05)
+    # Calculate initial scaled dimensions
     slingl_scaled_width = int(slingl.get_width() * 0.135)
     slingl_scaled_height = int(slingl.get_height() * 0.135)
+    slingr_scaled_width = int(slingr.get_width() * 0.05)
+    slingr_scaled_height = int(slingr.get_height() * 0.05)
+    
+    # Initial scaling of sling images
+    slingl = pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
+    slingr = pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
 
     n11 = pg.transform.scale(n11, (n11_scaled_width, n11_scaled_height))
     sahur = pg.transform.scale(sahur, (sahur_scaled_width, sahur_scaled_height))
-    slingr = pg.transform.scale(slingr, (slingr_scaled_width, slingr_scaled_height))
-    slingl = pg.transform.scale(slingl, (slingl_scaled_width, slingl_scaled_height))
+    print(slingr.get_width(), slingr.get_height())
+    print(slingl.get_width(), slingl.get_height())
+    
 
     bomb0 = pg.image.load(load_resource("./resources/images/bomb0.png")).convert_alpha()
     bomb1 = pg.image.load(load_resource("./resources/images/bomb1.png")).convert_alpha()
@@ -275,8 +344,8 @@ def main_loop():
     # STATIC FLOOR
 
     static_body = pm.Body(body_type=pm.Body.STATIC)
-    static_lines = [pm.Segment(static_body, (0.0, 130.0), (1200.0, 130.0), 0.0)]
-    static_lines1 = [pm.Segment(static_body, (1200.0, 200.0), (1200.0, 800.0), 0.0)]
+    static_lines = [pm.Segment(static_body, scale_pos(0.0, 130.0), scale_pos(1200.0, 130.0), 0.0)]
+    static_lines1 = [pm.Segment(static_body, scale_pos(1200.0, 200.0), scale_pos(1200.0, 800.0), 0.0)]
 
     for line in static_lines:
         line.elasticity = 0.95
@@ -306,7 +375,8 @@ def main_loop():
     buttons = pg.image.load(load_resource("./resources/images/buttons.png")).convert_alpha()
 
     def to_pygame(p):
-        return int(p.x), int(-p.y + 600)
+        x, y = p.x, -p.y + 600
+        return scale_pos(x, y)
 
     def vector(p0, p1):  # return vector of p1 and p2
         a = p1[0] - p0[0]
@@ -337,76 +407,51 @@ def main_loop():
         global mouse_distance
         global pu
 
-        sx, sy = sling_anchor
-
+        sx, sy = scale_pos(*sling_anchor)
         mx, my = x_mouse, y_mouse
 
-
-
         v = vector((sx, sy), (mx, my))
-
         uv = unit_vector(v)
-
         uv1 = uv[0]
-
         uv2 = uv[1]
-
-
 
         mouse_distance_raw = distance(sx, sy, mx, my)
 
-
-
         if mouse_distance_raw > rope_length:
-
             mouse_distance = rope_length
-
-            pu = (uv1 * rope_length + sx, uv2 * rope_length + sy)
-
+            pu = uv1 * rope_length + sx, uv2 * rope_length + sy
             x_sahur = pu[0] - sahur.get_width() // 2
-
             y_sahur = pu[1] - sahur.get_height() // 2
 
             if len(level.level_birds) >= 0:
-                
-                
+
                 screen.blit(bird_img, (x_sahur, y_sahur))
-
-                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
-
-                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2, slingl_y + 13), pu, 5)
-
+                slingl_x, slingl_y = get_sling_positions()
+                slingr_x, slingr_y = get_sling_positions()
+                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4 * scale_x, slingr_y + 3 * scale_y), pu, 5)
+                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2 * scale_x, slingl_y + 13 * scale_y), pu, 5)
         else:
-
             mouse_distance = mouse_distance_raw
-
-            pu = (mx, my)
-
-            x_sahur = mx - sahur.get_width() // 2 # Center bird on mouse
-
-            y_sahur = my - sahur.get_height() // 2 # Center bird on mouse
+            pu = mx, my
+            x_sahur = mx - sahur.get_width() // 2
+            y_sahur = my - sahur.get_height() // 2
 
             if len(level.level_birds) >= 0:
 
                 screen.blit(bird_img, (x_sahur, y_sahur))
+                slingl_x, slingl_y = get_sling_positions()
+                slingr_x, slingr_y = get_sling_positions()
+                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4 * scale_x, slingr_y + 3 * scale_y), (mx, my), 5)
+                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2 * scale_x, slingl_y + 13 * scale_y), (mx, my), 5)
 
-                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), (mx, my), 5)
-
-                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2, slingl_y + 13), (mx, my), 5)
-
-
-
-        dy = sy - pu[1] # Vector component from end of rope to anchor
-
-        dx = sx - pu[0] # Vector component from end of rope to anchor
-
+        dy = sy - pu[1]
+        dx = sx - pu[0]
         if dx == 0:
             dx = 0.000000000000001
 
         angle = math.atan2(dy, dx)
         launch_angle = angle
-        #print(f"launch_angle in sling_action: {math.degrees(launch_angle)}")
-        
+
     def restart():
         global mouse_pressed_to_shoot, restart_counter
         mouse_pressed_to_shoot = False
@@ -543,23 +588,51 @@ def main_loop():
     # 4:win
     # 6:levels menu
     # Create and load the first level with the correct arguments
-    level = Level(pigs, columns, beams, circles, triangles, space)
+    level = Level(pigs, columns, beams, circles, triangles, space, screen_height, screen_width)
     level.load_level()
 
     def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space):
         global bird
         bird = level.level_birds[-1]
         if bird == "sahur":
-            bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space)
+            bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
         elif bird == "liri":
-            bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space)
+            bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
         elif bird == "palocleves":
-            bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space)
+            bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
         return bird
     
     def get_next_bird_img():
         pass
    
+    def handle_resize(event):
+        global slingl_scaled_width
+        global slingl
+        global slingr
+        global slingl
+        global slingl_scaled_height
+        global slingr_scaled_width
+        global slingr_scaled_height
+        global levels_drawn
+        nonlocal screen, screen_width, screen_height, scale_x, scale_y
+        screen = pg.display.set_mode((event.w, event.h), pg.RESIZABLE)
+        screen_width, screen_height = event.w, event.h
+        scale_x = screen_width / base_width
+        scale_y = screen_height / base_height
+        # Redraw the screen immediately after resize
+        screen.fill((130, 200, 100))
+        bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
+        screen.blit(bg_scaled, (0, 0))
+        print("Resizing bg")
+        slingl=pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
+        slingr=pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
+        if game_state == 6:
+            print("Resizing levels")
+            levels_drawn = False
+            draw_levels()
+            #levels_drawn = True
+        pg.display.flip()
+
     while running:
         
         stop_button_rect = stop_button.get_rect(topleft=(8, 8))
@@ -571,6 +644,8 @@ def main_loop():
                 running = False
             elif event.type == pg.KEYDOWN and event.key == pg.K_ESCAPE:
                 running = False
+            elif event.type == pg.VIDEORESIZE:
+                handle_resize(event)
             elif game_state == 0:
                 if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
                     mouse_button_down = True
@@ -585,7 +660,7 @@ def main_loop():
                         menu_open = True
                         menu_open_time = time.time()
                     if mouse_pressed_to_shoot:
-                        pu = (140, 420)
+                        pu = scale_pos(140, 420)
                         mouse_pressed_to_shoot = False
 
                         if level.number_of_birds >= 0:
@@ -594,17 +669,15 @@ def main_loop():
                             sx, sy = sling_anchor
 
                             impulse_factor = 10.0
-                            #print(mouse_distance, impulse_factor, math.sin(launch_angle))
                             
                             
                             impulse_x = -mouse_distance * impulse_factor * math.cos(launch_angle)
                             impulse_y = mouse_distance * impulse_factor * math.sin(launch_angle)
-                            #print(f"Impuls: {impulse_x}, {impulse_y}")
-                            #print(f"Abschusswinkel: {math.degrees(launch_angle)}")
-                            #print(f"Abschussdistanz: {mouse_distance}")
-
+                            
+                            # Update bird starting position to align with sling
                             bird_x = sx
-                            bird_y = sy - 150
+                            bird_y = sy - (30 * scale_y)  # Adjust vertical offset based on scale
+                            bird_x, bird_y = bird_x, bird_y
                             print(level.level_birds)
                             bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space)
                             
@@ -620,33 +693,33 @@ def main_loop():
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (10 + stop_button.get_width() > x_mouse > 10 and
-                            10 + stop_button.get_height() > y_mouse > 10):
+                    if (10 + stop_button.get_width() > scale_x * x_mouse > 10 and
+                            10 + stop_button.get_height() > scale_y * y_mouse > 10):
                         game_state = 0
 
-                    elif (80 + replay_button.get_width() > x_mouse > 80 and
-                        170 + replay_button.get_height() > y_mouse > 190):
+                    elif (80 + replay_button.get_width() > scale_x * x_mouse > 80 and
+                        170 + replay_button.get_height() > scale_y * y_mouse > 190):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (105 + menu_button.get_width() > x_mouse > 105 and
-                        307 + menu_button.get_height() > y_mouse > 307):
+                    elif (105 + menu_button.get_width() > scale_x * x_mouse > 105 and
+                        307 + menu_button.get_height() > scale_y * y_mouse > 307):
                         game_state = 6
                         levels_drawn = False
 
-                    elif (60 + sound_button.get_width() > x_mouse > 55 and
-                        565 + sound_button.get_height() > y_mouse > 565):
+                    elif (60 + sound_button.get_width() > scale_x * x_mouse > 55 and
+                        565 + sound_button.get_height() > scale_y * y_mouse > 565):
                         sound_on = not sound_on
 
             elif game_state == 4:
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (665 + next_button.get_width() > x_mouse > 665 and
-                            480 + next_button.get_height() > y_mouse > 480):
+                    if (665 + next_button.get_width() > scale_x * x_mouse > 665 and
+                            480 + next_button.get_height() > scale_y * y_mouse > 480):
                         restart()
                         level.number += 1
                         game_state = 0
@@ -655,16 +728,16 @@ def main_loop():
                         bird_path = []
                         bonus_score_once = True
 
-                    elif (559 + replay_button.get_width() > x_mouse > 559 and
-                        486 + replay_button.get_height() > y_mouse > 486):
+                    elif (559 + replay_button.get_width() > scale_x * x_mouse > 559 and
+                        486 + replay_button.get_height() > scale_y * y_mouse > 486):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (452 + menu_button.get_width() > x_mouse > 452 and
-                        490 + menu_button.get_height() > y_mouse > 490):
+                    elif (452 + menu_button.get_width() > scale_x * x_mouse > 452 and
+                        490 + menu_button.get_height() > scale_y * y_mouse > 490):
                         game_state = 6
                         levels_drawn = False
 
@@ -672,16 +745,16 @@ def main_loop():
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (559 + replay_button.get_width() > x_mouse > 559 and
-                            486 + replay_button.get_height() > y_mouse > 486):
+                    if (559 + replay_button.get_width() > scale_x * x_mouse > 559 and
+                            486 + replay_button.get_height() > scale_y * y_mouse > 486):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (452 + menu_button.get_width() > x_mouse > 452 and
-                        490 + menu_button.get_height() > y_mouse > 490):
+                    elif (452 + menu_button.get_width() > scale_x * x_mouse > 452 and
+                        490 + menu_button.get_height() > scale_y * y_mouse > 490):
                         game_state = 6
                         levels_drawn = False
 
@@ -695,6 +768,7 @@ def main_loop():
                         for i in range(21):
                             icon_x = x_offset + (i % 7) * 151
                             icon_y = y_offset + (i // 7) * 160
+                            icon_x,icon_y = scale_pos(icon_x,icon_y)
                             current_icon_rect = level_icon_rect.move(icon_x, icon_y)
                             level_number = i + 1
                             level_method_name = f"build_{level_number}" # Korrigierter Methodenname
@@ -712,14 +786,15 @@ def main_loop():
                                             score = 0
                                             bonus_score_once = True
                                             break
-                        if (101 + menu_button.get_width() > x_mouse > 101 and
-                                51 + menu_button.get_height() > y_mouse > 51):
+                        b_size_scaled = scale_size(menu_button.get_width(),menu_button.get_height())
+                        if (101 + b_size_scaled[0] > x_mouse > 101 and
+                                51 + b_size_scaled[1] > y_mouse > 51):
                             game_state = 0
                             levels_drawn = False
 
         if game_state == 0:
             try:
-                bird_img = pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[-1]}.png")).convert_alpha(),(30,30))
+                bird_img = pg.transform.scale(pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[-1]}.png")).convert_alpha(),(30,30)),scale_size(30,30))
             except IndexError as e:
                 pass
                 
@@ -729,65 +804,67 @@ def main_loop():
             screen.blit(bg_scaled, (0, 0))
 
             x_mouse, y_mouse = pg.mouse.get_pos()
-            if pg.mouse.get_pressed()[0] and (110 < x_mouse < 170 and 250 < y_mouse < 400):
+            if pg.mouse.get_pressed()[0] and (110 * scale_x < x_mouse < 170 * scale_x and 250 * scale_y < y_mouse < 400 * scale_y):
                 mouse_pressed_to_shoot = True
 
-            screen.blit(slingr, (120, 370))
-            if game_state == 0:
-                menu_open = False
-                screen.fill((130, 200, 100))
-                bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
-                screen.blit(bg_scaled, (0, 0))
-
-                x_mouse, y_mouse = pg.mouse.get_pos()
-                if pg.mouse.get_pressed()[0] and (110 < x_mouse < 170 and 250 < y_mouse < 400):
-                    mouse_pressed_to_shoot = True
-
-                screen.blit(slingr, (120, 370))
-                
-                # birds behind sling
+            #screen.blit(slingr, scale_pos(130, 400))
+            
+            # birds behind sling
             if level.number_of_birds > 0:
                 for i in range(level.number_of_birds):
-                    
                     bird_type = level.level_birds[i]
                     try:
-                        bird_behind_img = pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{bird_type}.png")).convert_alpha(),(30,30))
+                        bird_behind_img = pg.transform.scale(pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{bird_type}.png")).convert_alpha(),(30,30)),scale_size(30,30))
+                        
                         x_position = 100 - i * 35
-                        screen.blit(bird_behind_img, (x_position, 435))
+                        screen.blit(bird_behind_img, scale_pos(x_position, 445))
+                        #print(scale_pos(0,435))
                     except FileNotFoundError:
                         print(f"Error: Bird image not found for {bird_type}")
             if mouse_pressed_to_shoot and level.number_of_birds >= 0:
                 sling_action()
+                
+            # bird sitting in sling
             elif level.number_of_birds >= 0:
-                screen.blit(pg.transform.scale(bird_img, (30,30)), (130, 370))
+                slingl_x, slingl_y = get_sling_positions()
+                slingr_x, slingr_y = get_sling_positions()
+                screen.blit(bird_img, scale_pos(130, 370))
+                
+                
+                
+                screen.blit(slingl, (slingl_x, slingl_y))
+                screen.blit(slingr, (slingr_x, slingr_y))
             else:
-                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4, slingr_y + 3), pu, 5)
-                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2, slingl_y + 13), pu, 5)
+                default_x = 140 * scale_x
+                default_y = 420 * scale_y
+                slingl_x, slingl_y = get_sling_positions()
+                slingr_x, slingr_y = get_sling_positions()
+                pg.draw.line(screen, (0, 0, 0), (slingr_x + 4 * scale_x, slingr_y + 3 * scale_y), (default_x, default_y), 5)
+                pg.draw.line(screen, (0, 0, 0), (slingl_x + 2 * scale_x, slingl_y + 13 * scale_y), (default_x, default_y), 5)
 
             bird_to_remove = []
             pig_to_remove = []
 
+            # Track bird path
             for bird in birds:
                 p = to_pygame(bird.shape.body.position)
                 x, y = p
                 blit_x = x - sahur.get_width() // 2
                 blit_y = y - sahur.get_height() // 2
-                screen.blit(pg.transform.scale(pg.image.load(load_resource(bird.img)).convert_alpha(),(30,30)), (blit_x, blit_y))
-                pg.draw.circle(screen, BLUE, p, int(bird.shape.radius), 2)
-                bird_path.append(p)
-                if (bird.shape.body.position.y < 0 or bird.shape.body.position.x < -50 or
-                        bird.shape.body.position.x > screen_width + 50 or
-                        time.time() - bird.launch_time > bird.lifespan):
-                    bird_to_remove.append(bird)
+                screen.blit(bird_img, scale_pos(blit_x, blit_y))
+                pg.draw.circle(screen, BLUE, scale_pos(x, y), int(bird.shape.radius), 2)
+                bird_path.append((x, y))  # Store original coordinates
 
-            for point in bird_path:
-                if bird_path.index(point) % 5 == 0:
-                    pg.draw.circle(screen, WHITE, point, 3)
+            # Draw bird path
+            for i, point in enumerate(bird_path):
+                if i % 5 == 0:  # Draw point every 5 positions
+                    scaled_point = scale_pos(point[0], point[1])
+                    pg.draw.circle(screen, WHITE, scaled_point, 3)
 
             for bird in bird_to_remove:
                 space.remove(bird.shape, bird.shape.body)
                 birds.remove(bird)
-                bird_path = []
+                bird_path = []  # Clear path when bird is removed
 
             for pig in pigs:
                 if pig.shape.body.position.y < 0:
@@ -807,7 +884,6 @@ def main_loop():
                 pg.draw.lines(screen, TRANSP, False, [p1, p2])
 
             for pig in pigs:
-                #print(pig,type)
                 pig_to_remove = []
                 pigg=pig
                 pig = pig.shape
@@ -846,17 +922,12 @@ def main_loop():
                         pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
                 
                 pig_img = pg.transform.rotate(pig_img, angle_degree)
-
-                # Calculate the bounding box of the *original* image, not the rotated one
-                width, height = pig_img.get_size() # Use the size of the *original* image
-
+                width, height = pig_img.get_size()
                 rotated_image = pg.transform.rotate(pig_img, angle_degree)
-                
                 offset = Vec2d(*rotated_image.get_size()) / 2
-                #print("offset: ",offset)
                 x -= offset[0]
                 y -= offset[1]
-                screen.blit(rotated_image, (x, y))
+                screen.blit(rotated_image, scale_pos(x, y))
                 pg.draw.circle(screen, BLUE, p, int(pig.radius), 2)
                 if (pig.body.position.y < 0 or pig.body.position.x < -50 or
                         pig.body.position.x > screen_width + 50):
@@ -878,18 +949,21 @@ def main_loop():
             dt = 1.0 / 50.0 / 2.0
             for x in range(2):
                 space.step(dt)
-            screen.blit(slingl, (120, 370))
+            slingl_x, slingl_y = get_sling_positions()
+            slingr_x, slingr_y = get_sling_positions()
+            screen.blit(slingl, (slingl_x, slingl_y))
+            screen.blit(slingr, (slingr_x, slingr_y))
 
             score_font = bold_font.render("SCORE", 1, WHITE)
             number_font = bold_font.render(str(score), 1, WHITE)
 
-            screen.blit(score_font, (1060, 90))
+            screen.blit(score_font, scale_pos(1060, 90))
             if score == 0:
-                screen.blit(number_font, (1150, 130))
+                screen.blit(number_font, scale_pos(1150, 130))
             else:
-                screen.blit(number_font, (1060, 130))
+                screen.blit(number_font, scale_pos(1060, 130))
 
-            screen.blit(stop_button, (8, 8))
+            screen.blit(stop_button, scale_pos(8, 8))
 
             if not pigs and not mouse_pressed_to_shoot and not restart_counter and not birds:
                 print("Level cleared! Setting game_state to 4")
@@ -902,9 +976,9 @@ def main_loop():
         elif game_state == 5:
             menu_open = True
             if sound_on:
-                screen.blit(menu_son, (0, 0))
+                screen.blit(menu_son, scale_pos(0, 0))
             else:
-                screen.blit(menu_sof, (0, 0))
+                screen.blit(menu_sof, scale_pos(0, 0))
 
         elif game_state == 4:
             print(level.number)
@@ -913,94 +987,143 @@ def main_loop():
                     f.write(f"{str(level.number+1)}\n")
                     print(f"written {level.number+1}")
                     
-                
             level_cleared = bold_font3.render("Level cleared!", 1, WHITE)
             score_level_cleared = bold_font2.render(str(score), 1, WHITE)
             if level.number_of_birds >= 0 and not pigs and bonus_score_once:
                 score += (level.number_of_birds) * 10000
                 bonus_score_once = False
 
-            rect = pg.Rect(300, 0, 600, 650)
+            # Calculate center position for the purple background
+            center_x = screen_width // 2
+            center_y = screen_height // 2
+            rect_width = min(screen_width * 0.8, 600)  # 80% of screen width or 600px, whichever is smaller
+            rect_height = screen_height  # 80% of screen height or 650px, whichever is smaller
+            
+            rect = pg.Rect(
+                center_x - rect_width // 2,  # Center horizontally
+                center_y - rect_height // 2,  # Center vertically
+                rect_width,
+                rect_height
+            )
             pg.draw.rect(screen, (PURPLE), rect)
-            screen.blit(level_cleared, (450, 90))
+            screen.blit(level_cleared, scale_pos(450, 90))
 
             if score >= level.one_star:
-                screen.blit(star1, (370, 190))
+                screen.blit(star1, scale_pos(370, 190))
             if score >= level.two_star:
-                screen.blit(star2, (440, 140))
+                screen.blit(star2, scale_pos(440, 140))
             if score >= level.three_star:
-                screen.blit(star3, (660, 190))
+                screen.blit(star3, scale_pos(660, 190))
 
-            screen.blit(score_level_cleared, (555, 400))
-            screen.blit(replay_button, (555, 480))
-            screen.blit(next_button, (665, 480))
-            screen.blit(menu_button, (445, 480))
+            screen.blit(score_level_cleared, scale_pos(555, 400))
+            screen.blit(replay_button, scale_pos(555, 480))
+            screen.blit(next_button, scale_pos(665, 480))
+            screen.blit(menu_button, scale_pos(445, 480))
 
         elif game_state == 3:
             level_failed = bold_font3.render("Level failed!", 1, WHITE)
             score_level_failed = bold_font2.render(str(score), 1, WHITE)
 
-            rect = pg.Rect(300, 0, 600, 650)
+            # Calculate center position for the purple background
+            center_x = screen_width // 2
+            center_y = screen_height // 2
+            rect_width = min(screen_width * 0.8, 600)  # 80% of screen width or 600px, whichever is smaller
+            rect_height = screen_height  # 80% of screen height or 650px, whichever is smaller
+            
+            rect = pg.Rect(
+                center_x - rect_width // 2,  # Center horizontally
+                center_y - rect_height // 2,  # Center vertically
+                rect_width,
+                rect_height
+            )
             pg.draw.rect(screen, (PURPLE), rect)
-            screen.blit(level_failed, (450, 90))
+            screen.blit(level_failed, scale_pos(450, 90))
 
             if score >= level.one_star:
-                screen.blit(star1, (370, 190))
+                screen.blit(star1, scale_pos(370, 190))
             if score >= level.two_star:
-                screen.blit(star2, (440, 140))
+                screen.blit(star2, scale_pos(440, 140))
             if score >= level.three_star:
-                screen.blit(star3, (660, 190))
+                screen.blit(star3, scale_pos(660, 190))
 
-            screen.blit(score_level_failed, (555, 400))
-            screen.blit(replay_button, (555, 480))
-            screen.blit(menu_button, (445, 480))
+            screen.blit(score_level_failed, scale_pos(555, 400))
+            screen.blit(replay_button, scale_pos(555, 480))
+            screen.blit(menu_button, scale_pos(445, 480))
 
         elif game_state == 6:
-            if not levels_drawn:
+            def draw_levels():
+                global levels_drawn
+            
+                print("Drawing levels")
                 num_levels = 21
-                screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), (0, 0))
-                x, y = 100, 50
-                level_icon_rect = level_icon.get_rect()
+                screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), scale_pos(0, 0))
+                    
+                # Calculate base positions and spacing
+                base_x = 100
+                base_y = 50
+                base_spacing_x = 151
+                base_spacing_y = 160
+                levels_per_row = 7
+                
+                # Scale the icon size
+                icon_width = int(100 * scale_x)
+                icon_height = int(100 * scale_y)
+                level_icon_scaled = pg.transform.scale(level_icon, (icon_width, icon_height))
+                locked_icon_scaled = pg.transform.scale(locked_level_icon, (icon_width, icon_height))
+                level_icon_rect = level_icon_scaled.get_rect()
 
                 for i in range(num_levels):
                     level_number = i + 1
                     level_method_name = f"build_{level_number}"
                     
-                    icon_x = x
-                    icon_y = y
+                    # Calculate position with proper scaling
+                    row = i // levels_per_row
+                    col = i % levels_per_row
+                    x = base_x + (col * base_spacing_x)
+                    y = base_y + (row * base_spacing_y)
+                    x, y = scale_pos(x, y)
 
+                    # Choose appropriate icon
                     if getattr(level, level_method_name, None):
                         with open("cleared_levels.txt","r+") as f:
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
-                                icon = level_icon
+                                icon = level_icon_scaled
                             else:
-                                icon = locked_level_icon
+                                icon = locked_icon_scaled
                     else:
-                        icon = locked_level_icon
+                        icon = locked_icon_scaled
 
+                    # Scale the level number text
                     level_text = str(level_number)
                     level_font = bold_font3.render(level_text, 1, WHITE)
                     text_rect = level_font.get_rect(center=level_icon_rect.center)
-                    screen.blit(icon, (icon_x, icon_y))
+                    
+                    # Draw the icon and text
+                    screen.blit(icon, (x, y))
                     if getattr(level, level_method_name, None):
                         with open("cleared_levels.txt","r+") as f:
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
-                                screen.blit(level_font, (icon_x + text_rect.x, icon_y + text_rect.y))
+                                screen.blit(level_font, (x + text_rect.x, y + text_rect.y))
 
-                    x += 151
-                    if level_number % 7 == 0:
-                        y += 160
-                        x = 100
-
-            levels_drawn = True
+                # Scale and position the menu button
+                menu_button_scaled = pg.transform.scale(menu_button, 
+                    (int(menu_button.get_width() * scale_x), 
+                    int(menu_button.get_height() * scale_y)))
+                menu_x, menu_y = scale_pos(101, 51)
+                #screen.blit(menu_button_scaled, (menu_x, menu_y))
+                levels_drawn = True
+                
+            if not levels_drawn:
+                draw_levels()
+            #levels_drawn = True
 
             
         pg.display.flip()
         clock.tick(60)
 
-if __name__ == "__main__":
-    main_loop()
+        
 
     pg.quit()
     sys.exit()
 
+main_loop()
