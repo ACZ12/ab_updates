@@ -4,11 +4,11 @@ import pymunk as pm
 from pymunk import Vec2d
 import time
 import pygame as pg
-
+from Polygon import Polygon
 
 class Bird():
     
-    def __init__(self,distance,angle,x,y,space,screen_height, screen_width):
+    def __init__(self,distance,angle,x,y,space,screen_height, screen_width, level):
         
         pg.display.init()
         self.life = 20
@@ -22,36 +22,115 @@ class Bird():
         impulse = power*Vec2d(1,0)
         angle = -angle
         body.apply_impulse_at_local_point(impulse.rotated(angle))
-        shape = pm.Circle(body,radius,(0,0))
-        shape.elasticity = 0.5
-        self.friction = 0.95
+        shape = pm.Circle(body,radius ,(0,0))
+        shape.elasticity = 0.6
+        shape.friction = 1
         shape.collision_type = 0
         space.add(body,shape)
         self.body = body
         self.shape = shape
-        self.launch_time = time.time()
+        self.launch_time = time.time() *1000
         self.lifespan = 7
         self.screen_height = screen_height
         self.screen_width = screen_width
+        self.level = level
+        
         
         
 class Sahur(Bird):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
+    bat_img = "./resources/images/bat.png"
     img = "./resources/images/sahur.png"
     scale = (30,30)
+    
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        
+        self.level.columns.append(Polygon(self.body.position,20,85,self.level.space, 1000, "bats", self.screen_height, self.screen_width))
+        self.fahigkeit_verwendet = True
         
 class Liri(Bird):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
     img = "./resources/images/liri.png"
     scale = (30,30)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
     
 class Palocleves(Bird):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
     img = "./resources/images/palocleves.png"
     scale = (50,50)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
+    
+class Trala(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
+    img = "./resources/images/trala.png"
+    scale = (50,50)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
+        
+class Glorbo(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
+    img = "./resources/images/glorbo.png"
+    scale = (50,50)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
+    
+class Patapim(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
+    img = "./resources/images/patapim.png"
+    scale = (50,50)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
+        
+class Bomb(Bird):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.radius = 15
+        self.fahigkeit_verwendet = False
+        self.bird_hit_ground = False
+    img = "./resources/images/bomb.png"
+    scale = (50,50)
+    
+    def fahigkeit(self):
+        print("fahigkeit verwendet!")
+        self.fahigkeit_verwendet = True
         
         
         

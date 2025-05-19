@@ -4,6 +4,7 @@ from pymunk import Vec2d
 import math
 import sys
 import os
+import character as ch
 
 def load_resource(path):
     """Gets the absolute path to a resource, handling both bundled and unbundled."""
@@ -13,25 +14,33 @@ def load_resource(path):
         return os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
 
 class Polygon():
-    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None):
+    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, bird_pos=None, mass=5.0, radius=15.0, triangle_points=None):
         self.life = life
         moment = 1000
         body = pm.Body(mass, moment)
+        #if bird_pos:
+        #   body_pos = bird_pos
+        #else:
         body.position = Vec2d(*pos)
+            
         if element_type in ["columns", "beams"]:
             shape = pm.Poly.create_box(body, (length, height))
+            print(shape)
             self.length = length
             self.height = height
             self.original_image = self.load_image(element_type)
+            space.add(body, shape) # Add body and shape here
         elif element_type == "circles":
             shape = pm.Circle(body, radius, (0,0))
             self.length = None
             self.height = None
             self.original_image = self.load_image(element_type)
+            space.add(body, shape)  # Add body and shape here
+
         elif element_type == "triangles":
             if triangle_points is None:
                 # Default triangle points if none provided
-                angle = math.radians(180)  # 180 degrees in radians
+                angle = math.radians(180)   # 180 degrees in radians
                 cos_angle = math.cos(angle)
                 sin_angle = math.sin(angle)
                 
@@ -50,13 +59,32 @@ class Polygon():
                     new_y = x * sin_angle + y * cos_angle
                     triangle_points.append((new_x, new_y))
                     
-            shape = pm.Poly(body, triangle_points)
+                    
+                    
+                shape = pm.Poly(body, triangle_points)
+                print(shape)
+                self.length = length
+                self.height = height
+                self.original_image = self.load_image(element_type)
+                space.add(body, shape)  # Add body and shape here
+            
+        if element_type == "bats":
             self.length = length
             self.height = height
-            self.original_image = self.load_image(element_type)
+            self.original_image = pg.image.load(ch.Sahur.bat_img).convert_alpha()
+            bat_box_points = [(-self.length, -self.height), (self.length, -self.height), (self.length, self.height), (-self.length, self.height)]   # Relative to body
+            bat_body = pm.Body(body_type=pm.Body.STATIC)
+            bat_box = pm.Poly(bat_body, bat_box_points)
+            bat_box.friction = 0.5
+            # shape = bat_box # Changed this line
+            space.add(bat_body, bat_box)  # Add the bat_body and bat_box to the space
+            shape = bat_box
+            
+            
+            
         shape.friction = 1
         shape.collision_type = 2
-        space.add(body, shape)
+        # space.add(body, shape) # Remove this line
         self.body = body
         self.shape = shape
         self.element_type = element_type
@@ -69,6 +97,7 @@ class Polygon():
         # Initialize scaling factors
         self.scale_x = screen_width / self.base_width
         self.scale_y = screen_height / self.base_height
+        self.in_space = True #add this line
 
     def update_scale_factors(self, screen_height, screen_width):
         """Update the scaling factors based on new screen dimensions."""
@@ -148,17 +177,22 @@ class Polygon():
                 image = texture.subsurface(ston3).copy()
             elif self.life == 10:
                 image = texture.subsurface(wod3).copy()
-                
-        print(image)
+        
+        elif element_type == "bats":
+            image = ch.Sahur.bat_img
+            
+        #print(image)
         return image # image zurückgeben
 
     def to_pygame(self, p):
         return self.scale_pos(int(p.x), int(-p.y + 600))
 
-    def draw_poly(self, screen, shape):
+    def draw_poly(self, screen, shape, bird_pos=None):
         if isinstance(shape, pm.Poly):
             ps = shape.get_vertices()
-            body_pos = shape.body.position
+            body_pos = shape.body.position  # Default to body's position
+            if shape.body.body_type == pm.Body.STATIC and bird_pos:
+                body_pos = bird_pos # Override if static and bird_pos is provided
             absolute_ps = [(p.x + body_pos.x, p.y + body_pos.y) for p in ps]
             absolute_ps.append(absolute_ps[0]) # Schließe das Polygon
             ps_pygame = [self.to_pygame(Vec2d(x, y)) for x, y in absolute_ps]
@@ -178,7 +212,11 @@ class Polygon():
                 offset = Vec2d(*rotated_image.get_size()) / 2
                 p_pygame -= offset
                 #screen.blit(rotated_image, (p_pygame[0]-rotated_image.get_width()/4,p_pygame[1]-rotated_image.get_height()/4))
-                screen.blit(rotated_image, (p_pygame[0],p_pygame[1]))
+                if not shape.body.body_type == pm.Body.STATIC and not bird_pos:
+                    screen.blit(rotated_image, (p_pygame[0],p_pygame[1]))
+                else:
+                    screen.blit(rotated_image, (ps_pygame[0],ps_pygame[1]))
+                    
         elif isinstance(shape, pm.Circle):
             p = self.to_pygame(shape.body.position)
             if self.original_image:
@@ -189,3 +227,25 @@ class Polygon():
                 screen.blit(rotated_image, (p[0]-rotated_image.get_width()/2,p[1]-rotated_image.get_height()/2))
             else:
                 pg.draw.circle(screen, (0, 0, 255), p, int(shape.radius))
+            
+    
+class Static_line():
+    def __init__(self,screen_width,screen_height,space):
+        self.space = space
+        self.base_width = 1200
+        self.base_height = 650
+        self.scale_x = screen_width / self.base_width
+        self.scale_y = screen_height / self.base_height
+        self.static_body = pm.Body(body_type=pm.Body.STATIC)
+        self.static_lines = [pm.Segment(self.static_body, (0.0, 130.0), (1200.0, 130.0), 0.0)]
+        for line in self.static_lines:
+            line.elasticity = 0.95
+            line.collision_type = 3
+            line.friction = 1
+        self.space.add(self.static_body, *self.static_lines)
+        
+        
+    
+    def scale_pos(self, x, y):
+        """Scale the given coordinates based on the current window size."""
+        return x * self.scale_x, y * self.scale_y

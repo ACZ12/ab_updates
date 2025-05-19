@@ -2,6 +2,8 @@
 
 from character import Pig
 from Polygon import Polygon
+import random
+import time
 
 
 wood_hp = 20
@@ -28,7 +30,7 @@ class Level():
         self.circles = circles
         self.triangles = triangles
         self.space = space
-        self.number = 1
+        self.number = 0
         self.number_of_birds = 4
         self.bool_space = False
         self.locked = ["","","build_2","build_3","build_4","build_5","build_6","build_7","build_8"] # Corrected indexing to start from 0
@@ -62,13 +64,58 @@ class Level():
         self.triangles.clear()
         self.number_of_birds = 4  # Reset the number of birds
 
+    
+
+    def build_0(self):
+        self.number = 1
+        self.level_birds = ["sahur","liri","trala","palocleves","bomb","patapim","glorbo"]
+        self.number_of_birds = 7
+        locked = False
+        # Define the range for the random y-coordinates, including negative values
+        min_y = 150  # Changed to negative
+        max_y = 600
+        min_x = 0
+        max_x = self.screen_width
+        
+        pig1 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n11")
+        #pig1_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n12")
+        pig2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 12, "n21")
+        #pig2_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n22")
+        pig3 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n31")
+        #pig3_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n32")
+        pig4 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 15, "n41")
+        #pig4_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n42")
+        pig5 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n51")
+        #pig5_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n52")
+        pig6 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n11")
+        #pig1_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n12")
+        pig7 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 12, "n21")
+        #pig2_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n22")
+        pig8 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n31")
+        #pig3_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n32")
+        pig9 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 15, "n41")
+        #pig4_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n42")
+        pig10 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n51")
+        #pig5_2 = Pig(random.randint(min_x, max_x), random.randint(min_y, max_y), self.space, 10, "n52")
+
+        piggs = [pig1,pig2,pig3,pig4,pig5,pig6,pig7,pig8,pig9,pig10]   
+        
+        
+             
+
+        for pig in piggs:
+            self.pigs.append(pig)
+            
+        
+
+        
 
     def build_1(self):
         """Builds level 1."""
 
         self.number = 1
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]
-        self.number_of_birds = 5
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves","trala"]
+        self.number_of_birds = 6
         locked = False
         pig1 = Pig(400,130,self.space,10,"n11")
         pig2 = Pig(450,130,self.space,12,"n21")
@@ -146,23 +193,23 @@ class Level():
         # create beam and column
 
         p = (900,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp, "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp, "columns", self.screen_height, self.screen_width))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -184,23 +231,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (900,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -223,23 +270,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
 
 
         p = (900,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -262,23 +309,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
 
 
         p = (980,250)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -303,23 +350,23 @@ class Level():
         # create beam and column
 
         p = (950,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
         
         p = (810,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns"))
+        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
 
 
         p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
         
         p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams"))
+        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
 
         self.number_of_birds = 4
         if self.bool_space:
@@ -340,22 +387,22 @@ class Level():
         self.pigs.extend([pig1, pig2, pig3])
 
         # Columns
-        col1 = Polygon((700, 200), 20, 100, self.space, wood_hp, "columns")
-        col2 = Polygon((900, 200), 20, 100, self.space, wood_hp, "columns")
-        col3 = Polygon((700, 350), 20, 100, self.space, stone_hp, "columns")
-        col4 = Polygon((900, 350), 20, 100, self.space, stone_hp, "columns")
+        col1 = Polygon((700, 200), 20, 100, self.space, wood_hp, "columns", self.screen_height, self.screen_width)
+        col2 = Polygon((900, 200), 20, 100, self.space, wood_hp, "columns", self.screen_height, self.screen_width)
+        col3 = Polygon((700, 350), 20, 100, self.space, stone_hp, "columns", self.screen_height, self.screen_width)
+        col4 = Polygon((900, 350), 20, 100, self.space, stone_hp, "columns", self.screen_height, self.screen_width)
 
         self.columns.extend([col1, col2, col3, col4])
 
         # Beams
-        beam1 = Polygon((800, 250), 200, 20, self.space, wood_hp, "beams")
-        beam2 = Polygon((800, 400), 200, 20, self.space, stone_hp, "beams")
+        beam1 = Polygon((800, 250), 200, 20, self.space, wood_hp, "beams", self.screen_height, self.screen_width)
+        beam2 = Polygon((800, 400), 200, 20, self.space, stone_hp, "beams", self.screen_height, self.screen_width)
 
         self.beams.extend([beam1, beam2])
 
         # Circles
-        circle1 = Polygon((750, 480), 30, 30, self.space, ice_hp, "circles")
-        circle2 = Polygon((850, 480), 30, 30, self.space, ice_hp, "circles")
+        circle1 = Polygon((750, 480), 30, 30, self.space, ice_hp, "circles", self.screen_height, self.screen_width)
+        circle2 = Polygon((850, 480), 30, 30, self.space, ice_hp, "circles", self.screen_height, self.screen_width)
         self.circles.extend([circle1, circle2])
 
         self.number_of_birds = 4
@@ -379,22 +426,22 @@ class Level():
         self.pigs.extend([pig1, pig2, pig3, pig4, pig5])
 
         # Columns
-        col1 = Polygon((550, 300), 20, 120, self.space, ice_hp, "columns")
-        col2 = Polygon((750, 300), 20, 120, self.space, ice_hp, "columns")
-        col3 = Polygon((650, 450), 20, 100, self.space, stone_hp, "columns")
+        col1 = Polygon((550, 300), 20, 120, self.space, ice_hp, "columns", self.screen_height, self.screen_width)
+        col2 = Polygon((750, 300), 20, 120, self.space, ice_hp, "columns", self.screen_height, self.screen_width)
+        col3 = Polygon((650, 450), 20, 100, self.space, stone_hp, "columns", self.screen_height, self.screen_width)
 
         self.columns.extend([col1, col2, col3])
 
         # Beams
-        beam1 = Polygon((650, 350), 200, 20, self.space, wood_hp, "beams")
-        beam2 = Polygon((650, 500), 200, 20, self.space, stone_hp, "beams")
+        beam1 = Polygon((650, 350), 200, 20, self.space, wood_hp, "beams", self.screen_height, self.screen_width)
+        beam2 = Polygon((650, 500), 200, 20, self.space, stone_hp, "beams", self.screen_height, self.screen_width)
 
         self.beams.extend([beam1, beam2])
 
         # Triangles
-        triangle1 = Polygon((575, 250), 20, 20, self.space, wood_hp, "triangles",
+        triangle1 = Polygon((575, 250), 20, 20, self.space, wood_hp, "triangles", self.screen_height, self.screen_width,
                                 triangle_points=[(565, 260), (575, 240), (585, 260)])
-        triangle2 = Polygon((725, 250), 20, 20, self.space, wood_hp, "triangles",
+        triangle2 = Polygon((725, 250), 20, 20, self.space, wood_hp, "triangles", self.screen_height, self.screen_width,
                                 triangle_points=[(715, 260), (725, 240), (735, 260)])
         self.triangles.extend([triangle1, triangle2])
 

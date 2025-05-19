@@ -14,6 +14,8 @@ import zipfile
 import shutil
 import json
 from pymunk import Vec2d
+import random
+from Polygon import Static_line
 
 # GLOBALS
 bird = None
@@ -38,6 +40,7 @@ launch_angle = 0
 pu = 0
 levels_drawn = False
 
+
 sound_on = True
 count = 0
 mouse_pressed_to_shoot = False
@@ -58,14 +61,14 @@ TRANSP = (0, 0, 0, 0)
 
 score = 0
 
-game_state = 6
+game_state = 7
 levels_drawn = False
 bird_path = []
 counter = 0
 restart_counter = False
 bonus_score_once = True
 
-
+loaded = False
 
 wall = False
 
@@ -109,6 +112,7 @@ def main_loop():
     global count
     global mouse_pressed_to_shoot
     global tick_to_next_circle
+    global loaded
 
     global RED
     global BLUE
@@ -134,7 +138,7 @@ def main_loop():
     global restart_counter
     global bonus_score_once
     global levels_drawn
-    
+
 
 
     global wall
@@ -187,14 +191,14 @@ def main_loop():
         screen.fill((130, 200, 100))
         bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
         screen.blit(bg_scaled, (0, 0))
-        print("Resizing bg")
+        #print("Resizing bg")
         
         # Rescale sling images
         slingl = pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
         slingr = pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
         
         if game_state == 6:
-            print("Resizing levels")
+            #print("Resizing levels")
             levels_drawn = False
             draw_levels()
         pg.display.flip()
@@ -309,19 +313,19 @@ def main_loop():
 
     n11 = pg.transform.scale(n11, (n11_scaled_width, n11_scaled_height))
     sahur = pg.transform.scale(sahur, (sahur_scaled_width, sahur_scaled_height))
-    print(slingr.get_width(), slingr.get_height())
-    print(slingl.get_width(), slingl.get_height())
+    #print(slingr.get_width(), slingr.get_height())
+    #print(slingl.get_width(), slingl.get_height())
     
 
     bomb0 = pg.image.load(load_resource("./resources/images/bomb0.png")).convert_alpha()
-    bomb1 = pg.image.load(load_resource("./resources/images/bomb1.png")).convert_alpha()
+    bomb1 = pg.image.load(load_resource("./resources/images/bomb.png")).convert_alpha()
     bomb2 = pg.image.load(load_resource("./resources/images/bomb2.png")).convert_alpha()
 
     glorbo = pg.image.load(load_resource("./resources/images/glorbo.png")).convert_alpha()
     liri = pg.image.load(load_resource("./resources/images/liri.png")).convert_alpha()
     liri = pg.transform.scale(liri,(liri.get_width()*0.1,liri.get_height()*0.1))
 
-    patapim_full = pg.image.load(load_resource("./resources/images/patapim_full.png")).convert_alpha()
+    patapim_full = pg.image.load(load_resource("./resources/images/patapim.png")).convert_alpha()
     patapim_leg1 = pg.image.load(load_resource("./resources/images/patapim_leg1.png")).convert_alpha()
     patapim_leg2 = pg.image.load(load_resource("./resources/images/patapim_leg2.png")).convert_alpha()
 
@@ -343,20 +347,7 @@ def main_loop():
     
     # STATIC FLOOR
 
-    static_body = pm.Body(body_type=pm.Body.STATIC)
-    static_lines = [pm.Segment(static_body, scale_pos(0.0, 130.0), scale_pos(1200.0, 130.0), 0.0)]
-    static_lines1 = [pm.Segment(static_body, scale_pos(1200.0, 200.0), scale_pos(1200.0, 800.0), 0.0)]
-
-    for line in static_lines:
-        line.elasticity = 0.95
-        line.collision_type = 3
-        line.friction = 1
-    for line in static_lines1:
-        line.elasticity = 0.95
-        line.collision_type = 3
-        line.friction = 1
-
-    space.add(static_body, *static_lines)
+    floor = Static_line(screen_height,screen_width,space)
 
     def get_all_files_listdir(directory):
         all_files = []
@@ -506,7 +497,7 @@ def main_loop():
         pig_body = b.body
         bird_momentum = bird_body.mass * bird_body.velocity.length
         base_damage = 0
-        momentum_damage_factor = 0.013
+        momentum_damage_factor = 0.33
         damage = base_damage + (bird_momentum * momentum_damage_factor)
 
         pig_to_remove = []
@@ -521,6 +512,40 @@ def main_loop():
         for pig in pig_to_remove:
             space.remove(pig.shape, pig.body)
             pigs.remove(pig)
+            
+    def post_solve_bird_wood(arbiter, space, _):
+        global beams
+        global columns
+        global triangles
+        global circles
+        element_to_remove = []
+        a, b = arbiter.shapes
+        bird_body = a.body
+        wood_body = b.body  # Get the wood's body.  Need this.
+        bird_momentum = bird_body.mass * bird_body.velocity.length # Calculate bird momentum
+
+        base_damage = 0
+        momentum_damage_factor = 0.13
+        damage = base_damage + (bird_momentum * momentum_damage_factor)
+
+        if arbiter.total_impulse.length > 2000:
+            for element in columns + circles + beams + triangles:
+                if element.shape.body == wood_body:  # Change to check the body
+                    element.life -= damage  # Apply damage
+                    if element.life <= 0:
+                        element_to_remove.append(element)
+                        global score
+                        score += 1000
+        for element in element_to_remove:
+            space.remove(element.shape, element.body)
+            if element.element_type == "columns":
+                columns.remove(element)
+            elif element.element_type == "beams":
+                beams.remove(element)
+            elif element.element_type == "circles":
+                circles.remove(element)
+            elif element.element_type == "triangles":
+                triangles.remove(element)
 
     def post_solve_pig_wood(arbiter, space, _):
         pig_to_remove = []
@@ -537,43 +562,26 @@ def main_loop():
             space.remove(pig.shape, pig.body)
             pigs.remove(pig)
 
-    def post_solve_bird_wood(arbiter, space, _):
+    def post_solve_bird_ground(arbiter, space, _):
         a, b = arbiter.shapes
         bird_body = a.body
-        wood_body = b.body
+        ground_body = b.body  
 
-        bird_momentum = bird_body.mass * bird_body.velocity.length
-        base_damage = 0
-        momentum_damage_factor = 0.013
-        damage = base_damage + (bird_momentum * momentum_damage_factor)
-
-        for wood in beams + columns + circles + triangles:
-            if wood.body == wood_body:
-                damage_threshold = 1000
-                damage_factor = 0.03
-                if arbiter.total_impulse.length > damage_threshold:
-                    damage = (arbiter.total_impulse.length - damage_threshold) * damage_factor
-                    wood.life -= damage
-                    if wood.life <= 0:
-                        space.remove(wood.shape, wood.body)
-                        if wood in beams:
-                            beams.remove(wood)
-                        elif wood in columns:
-                            columns.remove(wood)
-                        elif wood in circles:
-                            circles.remove(wood)
-                        elif wood in triangles:
-                            triangles.remove(wood)
-                        global score
-                        score += 5000
+        for ground in floor.static_lines:
+            if ground.body == ground_body:
                 impact_velocity_reduction_threshold = 3000
                 velocity_reduction_factor = 0.3
                 if arbiter.total_impulse.length > impact_velocity_reduction_threshold:
-                    bird_body.velocity *= (1 - velocity_reduction_factor)
+                    bird_body.velocity *= (1 - velocity_reduction_factor*2)
+                bird.bird_hit_ground = True
+                print("birdhitground")
+                
 
     space.add_collision_handler(0, 1).post_solve = post_solve_bird_pig
+    space.add_collision_handler(0, 2).post_solve = post_solve_bird_wood 
     space.add_collision_handler(1, 2).post_solve = post_solve_pig_wood
-    space.add_collision_handler(0, 2).post_solve = post_solve_bird_wood
+    space.add_collision_handler(0, 3).post_solve = post_solve_bird_ground 
+    
 
     t1 = 0
     c = 0
@@ -591,15 +599,23 @@ def main_loop():
     level = Level(pigs, columns, beams, circles, triangles, space, screen_height, screen_width)
     level.load_level()
 
-    def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space):
+    def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level):
         global bird
         bird = level.level_birds[-1]
         if bird == "sahur":
-            bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
+            bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
         elif bird == "liri":
-            bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
+            bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
         elif bird == "palocleves":
-            bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width)
+            bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+        elif bird == "trala":
+            bird = ch.Trala(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+        elif bird == "glorbo":
+            bird = ch.Glorbo(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+        elif bird == "patapim":
+            bird = ch.Patapim(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+        elif bird == "bomb":
+            bird = ch.Bomb(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
         return bird
     
     def get_next_bird_img():
@@ -623,11 +639,11 @@ def main_loop():
         screen.fill((130, 200, 100))
         bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
         screen.blit(bg_scaled, (0, 0))
-        print("Resizing bg")
+        #print("Resizing bg")
         slingl=pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
         slingr=pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
         if game_state == 6:
-            print("Resizing levels")
+            #print("Resizing levels")
             levels_drawn = False
             draw_levels()
             #levels_drawn = True
@@ -676,10 +692,10 @@ def main_loop():
                             
                             # Update bird starting position to align with sling
                             bird_x = sx
-                            bird_y = sy - (30 * scale_y)  # Adjust vertical offset based on scale
+                            bird_y = sy - 180 # Adjust vertical offset based on scale
                             bird_x, bird_y = bird_x, bird_y
                             print(level.level_birds)
-                            bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space)
+                            bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level)
                             
                             birds.append(bird)
                             bird_path = []
@@ -688,6 +704,10 @@ def main_loop():
 
                             if level.number_of_birds == 0:
                                 t2 = time.time()
+                    else:
+                        if birds and not birds[-1].fahigkeit_verwendet:
+                            birds[-1].fahigkeit()
+                            birds[-1].fahigkeit_verwendet = True
 
             elif game_state == 5:
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
@@ -845,21 +865,53 @@ def main_loop():
             bird_to_remove = []
             pig_to_remove = []
 
+
             # Track bird path
-            for bird in birds:
+            for bird in birds:                
                 p = to_pygame(bird.shape.body.position)
                 x, y = p
-                blit_x = x - sahur.get_width() // 2
-                blit_y = y - sahur.get_height() // 2
-                screen.blit(bird_img, scale_pos(blit_x, blit_y))
-                pg.draw.circle(screen, BLUE, scale_pos(x, y), int(bird.shape.radius), 2)
-                bird_path.append((x, y))  # Store original coordinates
+                angle_degree = math.degrees(bird.shape.body.angle)
+                #print(angle_degree)
+                
+                
+                bird_img = pg.transform.scale(pg.image.load(bird.img), (bird.scale[0]*scale_x, bird.scale[1]*scale_y))
+                bird_img = pg.transform.rotate(bird_img, angle_degree)
+                width, height = bird_img.get_size()
+                rotated_image = pg.transform.rotate(bird_img, angle_degree)
+                offset = Vec2d(*rotated_image.get_size()) / 2
+                x -= offset[0]
+                y -= offset[1]
+                img_x, img_y = p[0]-width/2, p[1]-height/2
+                screen.blit(rotated_image, (x, y))
+                #pg.draw.circle(screen, BLUE, p, int(bird.radius), 2)
+                if (bird.body.position.y < 0 or bird.body.position.x < -50 or
+                        bird.body.position.x > screen_width + 50):
+                    print(f"bird removed: {bird.body.position}")
+                    bird_to_remove.append(bird)
+                bird_path.append((img_x, img_y))  # Store original coordinates
+
+                
+
+                current_time = time.time() * 1000
+                if current_time - bird.launch_time > 7000:  # 7 seconds lifetime
+                    bird_to_remove.append(bird)
+                    bird_path = []  # Clear path when *this* bird is removed
+
+            #for bird_to_remove in bird_to_remove:
+            #    if bird_to_remove in birds: #check if the bird is still in the list
+            #        space.remove(bird_to_remove.shape, bird_to_remove.body)
+            #        birds.remove(bird_to_remove)
 
             # Draw bird path
             for i, point in enumerate(bird_path):
                 if i % 5 == 0:  # Draw point every 5 positions
-                    scaled_point = scale_pos(point[0], point[1])
-                    pg.draw.circle(screen, WHITE, scaled_point, 3)
+                    for bird in birds:
+                        if not bird.bird_hit_ground:
+                            scaled_point = scale_pos(point[0]+15, point[1]+15)
+                            pg.draw.circle(screen, WHITE, scaled_point, 3)
+                    else:
+                        pass
+                        
 
             for bird in bird_to_remove:
                 space.remove(bird.shape, bird.shape.body)
@@ -869,14 +921,14 @@ def main_loop():
             for pig in pigs:
                 if pig.shape.body.position.y < 0:
                     pig_to_remove.append(pig)
-                    print(pigs)
+                    #print(pigs)
             
             for pig in pig_to_remove:
                 space.remove(pig.body)
                 pigs.remove(pig)
 
-            for line in static_lines:
-                body = static_body
+            for line in floor.static_lines:
+                body = floor.static_body
                 pv1 = body.position + line.a.rotated(body.angle)
                 pv2 = body.position + line.b.rotated(body.angle)
                 p1 = to_pygame(pv1)
@@ -927,16 +979,24 @@ def main_loop():
                 offset = Vec2d(*rotated_image.get_size()) / 2
                 x -= offset[0]
                 y -= offset[1]
-                screen.blit(rotated_image, scale_pos(x, y))
-                pg.draw.circle(screen, BLUE, p, int(pig.radius), 2)
+                img_x, img_y = p[0]-width/2, p[1]-height/2
+                screen.blit(rotated_image, (x, y))
+                #pg.draw.circle(screen, BLUE, p, int(pig.radius), 2)
                 if (pig.body.position.y < 0 or pig.body.position.x < -50 or
                         pig.body.position.x > screen_width + 50):
+                    #print(f"Pig removed: {pig.body.position}")
                     pig_to_remove.append(pig)
                 
                     
             for column in columns:
-                column.draw_poly(screen,column.shape)
+                if column.element_type != "bats":
+                    column.draw_poly(screen,column.shape)
+                else:
+                    if birds:
+                        print(birds[-1].body.position)
 
+                        column.draw_poly(screen,column.shape,birds[-1].body.position)
+                    
             for beam in beams:
                 beam.draw_poly(screen,beam.shape)
                 
@@ -981,7 +1041,7 @@ def main_loop():
                 screen.blit(menu_sof, scale_pos(0, 0))
 
         elif game_state == 4:
-            print(level.number)
+            #print(level.number)
             with open("cleared_levels.txt","r+") as f:
                 if str(level.number+1) not in [line.rstrip("\n") for line in f.readlines()]:
                     f.write(f"{str(level.number+1)}\n")
@@ -1005,7 +1065,7 @@ def main_loop():
                 rect_width,
                 rect_height
             )
-            pg.draw.rect(screen, (PURPLE), rect)
+            pg.draw.rect(screen, (BLACK), rect)
             screen.blit(level_cleared, scale_pos(450, 90))
 
             if score >= level.one_star:
@@ -1036,7 +1096,7 @@ def main_loop():
                 rect_width,
                 rect_height
             )
-            pg.draw.rect(screen, (PURPLE), rect)
+            pg.draw.rect(screen, (BLACK), rect)
             screen.blit(level_failed, scale_pos(450, 90))
 
             if score >= level.one_star:
@@ -1116,6 +1176,144 @@ def main_loop():
             if not levels_drawn:
                 draw_levels()
             #levels_drawn = True
+            
+            
+        # start menu
+        elif game_state == 7:
+            #print(pigs)
+            
+            level_loader = getattr(level, "build_0", None)
+            if level_loader and not loaded:
+                level_loader()
+                loaded=True
+                
+            try:
+                bird_img = pg.transform.scale(pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[random.randint(0,level.number_of_birds)]}.png")).convert_alpha(),(30,30)),scale_size(30,30))
+            except IndexError as e:
+                pass
+            
+            screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), scale_pos(0, 0))
+                
+            
+
+            x_mouse, y_mouse = pg.mouse.get_pos()
+            if pg.mouse.get_pressed()[0] and (478 * scale_x < x_mouse < 711 * scale_x and 247 * scale_y < y_mouse < 400 * scale_y):
+                game_state = 6
+
+            
+            
+            
+                
+            
+            # Track bird path
+            for bird in birds:
+                bird_to_remove = []
+                
+                
+                p = to_pygame(bird.shape.body.position)
+                x, y = p
+                angle_degree = math.degrees(bird.shape.body.angle)
+                #print(angle_degree)
+                
+                
+                bird_img = pg.transform.scale(pg.image.load(bird.img), (bird.scale[0]*scale_x, bird.scale[1]*scale_y))
+                bird_img = pg.transform.rotate(bird_img, angle_degree)
+                width, height = bird_img.get_size()
+                rotated_image = pg.transform.rotate(bird_img, angle_degree)
+                offset = Vec2d(*rotated_image.get_size()) / 2
+                x -= offset[0]
+                y -= offset[1]
+                img_x, img_y = p[0]-width/2, p[1]-height/2
+                screen.blit(rotated_image, (x, y))
+                #pg.draw.circle(screen, BLUE, p, int(bird.radius), 2)
+                if (bird.body.position.y < 0 or bird.body.position.x < -50 or
+                        bird.body.position.x > screen_width + 50):
+                    #print(f"bird removed: {bird.body.position}")
+                    bird_to_remove.append(bird)
+                    
+                bird_path.append((img_x, img_y))  # Store original coordinates
+                
+                
+
+            
+
+            
+            
+            pig_to_remove = []
+            for pig in pig_to_remove:
+                
+                space.remove(pig.body)
+                pigs.remove(pig)
+
+            for line in floor.static_lines:
+                body = floor.static_body
+                pv1 = body.position + line.a.rotated(body.angle)
+                pv2 = body.position + line.b.rotated(body.angle)
+                p1 = to_pygame(pv1)
+                p2 = to_pygame(pv2)
+                pg.draw.lines(screen, TRANSP, False, [p1, p2])
+
+            for pig in pigs:
+                pig_to_remove = []
+                pigg=pig
+                pig = pig.shape
+                p = to_pygame(pig.body.position)
+                x, y = p
+                angle_degree = math.degrees(pig.body.angle)
+                
+                if pigg.type == "n11":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n11,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n12,(pigg.radius*2,pigg.radius*2))
+                
+                elif pigg.type == "n21":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n21,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n22,(pigg.radius*2,pigg.radius*2))
+                        
+                elif pigg.type == "n31":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n31,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n32,(pigg.radius*2,pigg.radius*2))
+                        
+                elif pigg.type == "n41":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n41,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n42,(pigg.radius*2,pigg.radius*2))
+                        
+                if pigg.type == "n51":
+                    if pigg.life == 30:
+                        pig_img = pg.transform.scale(n51,(pigg.radius*2,pigg.radius*2))
+                    else:
+                        pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
+                
+                pig_img = pg.transform.rotate(pig_img, angle_degree)
+                width, height = pig_img.get_size()
+                rotated_image = pg.transform.rotate(pig_img, angle_degree)
+                offset = Vec2d(*rotated_image.get_size()) / 2
+                x -= offset[0]
+                y -= offset[1]
+                img_x, img_y = p[0]-width/2, p[1]-height/2
+                screen.blit(rotated_image, (x, y))
+                #pg.draw.circle(screen, BLUE, p, int(pig.radius), 2)
+                if (pig.body.position.y < 0 or pig.body.position.x < -50 or
+                        pig.body.position.x > screen_width + 50):
+                    #print(f"Pig removed: {pig.body.position}")
+                    pig_to_remove.append(pig)
+                if len(pigs) > 50:
+                    pigs.remove(pigs[0])
+                #print(len(pigs))
+                
+            dt = 1.0 / 50.0 / 2.0
+            for x in range(2):
+                #print("space.step called")
+                space.step(dt)
+    
+            screen.blit(play_button,(screen_width/2-play_button.get_width()/2,screen_height/2-play_button.get_height()/2))
 
             
         pg.display.flip()
