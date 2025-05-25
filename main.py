@@ -7,32 +7,14 @@ from tkinter import messagebox, Tk
 import game
 
 def check_wifi_available():
-    """
-    Überprüft, ob eine WLAN-Verbindung besteht.
-
-    Returns:
-        bool: True, wenn WLAN verfügbar ist, False sonst.
-    """
     try:
-        # Versuche, eine Verbindung zu einem bekannten Host herzustellen (Google)
         urllib.request.urlopen("https://www.google.com", timeout=5)
-        print("yes wifi")
         return True
     except:
         print("no wifi")
         return False
 
 def get_latest_version(github_pages_url):
-    """
-    Ruft die neueste Version vom GitHub Pages Server ab.
-
-    Args:
-        github_pages_url (str): Die URL zum GitHub Pages Ordner,
-            der die Datei 'version.txt' enthält.
-
-    Returns:
-        str: Die neueste Versionsnummer oder None bei Fehler.
-    """
     version_file_url = f"{github_pages_url}/version.txt"
     print(version_file_url)
     try:
@@ -44,18 +26,7 @@ def get_latest_version(github_pages_url):
         return None
 
 def download_update(github_pages_url, temp_dir):
-    """
-    Lädt das Update-Paket (latest.zip) von GitHub Pages herunter.
 
-    Args:
-        github_pages_url (str): Die URL zum GitHub Pages Ordner,
-            der die Datei 'latest.zip' enthält.
-        temp_dir (str): Der Pfad zu einem temporären Verzeichnis,
-            zum Speichern des Downloads.
-
-    Returns:
-        str: Der Pfad zur heruntergeladenen ZIP-Datei oder None bei Fehler.
-    """
     update_file_url = f"{github_pages_url}/latest.zip"
     local_zip_path = os.path.join(temp_dir, "latest.zip")
     try:
@@ -63,8 +34,8 @@ def download_update(github_pages_url, temp_dir):
         with urllib.request.urlopen(update_file_url) as response, open(
             local_zip_path, "wb"
         ) as out_file:
-            data = response.read()  # Lies die gesamte Antwort in den Speicher
-            out_file.write(data)  # Schreibe die Daten in die Datei
+            data = response.read()  
+            out_file.write(data) 
         print(f"Update heruntergeladen nach: {local_zip_path}")
         return local_zip_path
     except Exception as e:
@@ -73,13 +44,6 @@ def download_update(github_pages_url, temp_dir):
 
 
 def extract_update(zip_file_path, install_dir):
-    """
-    Extrahiert das Update-Paket in das Installationsverzeichnis der Anwendung.
-
-    Args:
-        zip_file_path (str): Der Pfad zur heruntergeladenen ZIP-Datei.
-        install_dir (str): Der Pfad zum Installationsverzeichnis der Anwendung.
-    """
     import zipfile
 
     try:
@@ -92,12 +56,6 @@ def extract_update(zip_file_path, install_dir):
     return True
 
 def cleanup_temp_files(temp_dir):
-    """
-    Löscht temporäre Dateien und Verzeichnisse.
-
-    Args:
-        temp_dir (str): Der Pfad zum temporären Verzeichnis.
-    """
     import shutil
 
     try:
@@ -109,12 +67,6 @@ def cleanup_temp_files(temp_dir):
 
 
 def restart_application(app_name):
-    """
-    Startet die Anwendung neu.
-
-    Args:
-        app_name (str): Der Name der ausführbaren Datei der Anwendung.
-    """
     try:
         if sys.platform.startswith("win"):
             subprocess.Popen([sys.executable, app_name])  # Verwende sys.executable
@@ -132,25 +84,18 @@ def restart_application(app_name):
 
 
 def main():
-    """
-    Hauptfunktion deines Spiels, inklusive Update-Prüfung.
-    """
-    # Konfiguration
     print("main func gestartet")
-    github_pages_url = "https://acz12.github.io/ab_updates/"  # Ändern!
+    github_pages_url = "https://acz12.github.io/ab_updates/"
     
     with open("version.txt","r") as f:
         
-        current_version = f.read() # Aktuelle Version deiner Anwendung
+        current_version = f.read()
         
         
-    app_name = "game.py"  # Name deiner ausführbaren Datei oder Startskripts # Ändern!
-
-    # Tkinter root für die Messagebox erstellen, aber nicht anzeigen
+    app_name = "game.py"  
     root = Tk()
     root.withdraw()
 
-    # Update-Prüfung durchführen
     if check_wifi_available():
         print("WLAN ist verfügbar.")
         latest_version = get_latest_version(github_pages_url)
@@ -165,13 +110,13 @@ def main():
                 if update_available:
                     import tempfile
 
-                    temp_dir = tempfile.mkdtemp()  # Erstelle ein temporäres Verzeichnis
+                    temp_dir = tempfile.mkdtemp()  
                     print(f"Temporäres Verzeichnis erstellt: {temp_dir}")
                     zip_file_path = download_update(github_pages_url, temp_dir)
                     if zip_file_path:
                         install_dir = os.path.dirname(
                             os.path.abspath(sys.argv[0])
-                        )  # Installationsverzeichnis
+                        )  
                         if extract_update(zip_file_path, install_dir):
                             cleanup_temp_files(temp_dir)
                             messagebox.showinfo(
@@ -199,8 +144,8 @@ def main():
     else:
         print("Keine WLAN-Verbindung verfügbar. Update-Prüfung übersprungen.")
         messagebox.showinfo(
-            "Kein WLAN",
-            "Keine WLAN-Verbindung verfügbar. Die Anwendung wird ohne Update-Prüfung gestartet.",
+            "Nincs WLAN",
+            "Nincs WLAN-Verbindung verfügbar. Die Anwendung wird ohne Update-Prüfung gestartet.",
         )
         game.main_loop()
 

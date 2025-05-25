@@ -13,17 +13,6 @@ ice_hp = 10
 class Level():
     
     def __init__(self, pigs, columns, beams, circles, triangles, space, screen_height, screen_width):
-        """
-        Initializes a Level object.
-
-        Args:
-            pigs (list): List to store Pig objects.
-            columns (list): List to store Polygon objects representing columns.
-            beams (list): List to store Polygon objects representing beams.
-            circles (list): List to store Polygon objects representing circles.
-            triangles (list): List to store Polygon objects representing triangles.
-            space: The space object.
-        """
         self.pigs = pigs
         self.columns = columns
         self.beams = beams
@@ -56,14 +45,12 @@ class Level():
 
 
     def clear_level(self):
-        """Clears all pigs, columns, and beams from the lists."""
         self.pigs.clear()
         self.columns.clear()
         self.beams.clear()
         self.circles.clear()
         self.triangles.clear()
-        self.number_of_birds = 4  # Reset the number of birds
-
+        
     
 
     def build_0(self):
@@ -71,8 +58,7 @@ class Level():
         self.level_birds = ["sahur","liri","trala","palocleves","bomb","patapim","glorbo"]
         self.number_of_birds = 7
         locked = False
-        # Define the range for the random y-coordinates, including negative values
-        min_y = 150  # Changed to negative
+        min_y = 150  
         max_y = 600
         min_x = 0
         max_x = self.screen_width
@@ -111,66 +97,44 @@ class Level():
         
 
     def build_1(self):
-        """Builds level 1."""
-
         self.number = 1
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves","trala"]
-        self.number_of_birds = 6
+        self.level_birds = ["sahur","sahur","liri","trala","palocleves","bomb","patapim","glorbo"]
+        self.number_of_birds = 8
         locked = False
-        pig1 = Pig(400,130,self.space,10,"n11")
-        pig2 = Pig(450,130,self.space,12,"n21")
-        pig3 = Pig(500,130,self.space,10,"n31")
-        pig4 = Pig(550,130,self.space,15,"n41")
-        pig5 = Pig(600,130,self.space,10,"n51")
-
-        self.pigs.append(pig1)
-        self.pigs.append(pig2)
-        self.pigs.append(pig3)
-        self.pigs.append(pig4)
-        self.pigs.append(pig5)
         
-        self.number_of_birds = 4
+        # --- Structure 1: Simple Tower ---
+        base_x1 = 700
+        # Ground floor
+        self.columns.append(Polygon(self.scale_pos(base_x1 - 30, 150), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x1 + 30, 150), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x1, 198), 85, 20, self.space, wood_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x1, 220)[0], self.scale_pos(base_x1, 220)[1], self.space, 12,"n11"))
 
-        # create beam and column
+        # Second floor
+        self.columns.append(Polygon(self.scale_pos(base_x1 - 25, 250), 20, 85, self.space, ice_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x1 + 25, 250), 20, 85, self.space, ice_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x1, 298), 70, 20, self.space, ice_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x1, 320)[0], self.scale_pos(base_x1, 320)[1], self.space, 10,"n21"))
 
-        p = self.scale_pos(950,150)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp, "columns", self.screen_height, self.screen_width))
-        
-        p = self.scale_pos(900,150)
-        self.columns.append(Polygon(p,20,85,self.space, ice_hp, "columns", self.screen_height, self.screen_width))
-        
-        p = self.scale_pos(950,260)
-        self.columns.append(Polygon(p,20,85,self.space, wood_hp , "columns", self.screen_height, self.screen_width))
-        
-        p = self.scale_pos(900,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
-        p = self.scale_pos(800,220)
-        self.beams.append(Polygon(p,85,20,self.space,ice_hp , "beams", self.screen_height, self.screen_width))
-        p = self.scale_pos(700,220)
-        self.beams.append(Polygon(p,85,20,self.space,stone_hp , "beams", self.screen_height, self.screen_width))
+        # --- Structure 2: Wider Platform with a Topper ---
+        base_x2 = 950
+        # Lower platform
+        self.columns.append(Polygon(self.scale_pos(base_x2 - 50, 150), 20, 85, self.space, stone_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x2, 150), 20, 85, self.space, stone_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x2 + 50, 150), 20, 85, self.space, stone_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x2 - 25, 198), 85, 20, self.space, stone_hp, "beams", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x2 + 25, 198), 85, 20, self.space, stone_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x2 - 25, 220)[0], self.scale_pos(base_x2 - 25, 220)[1], self.space, 10,"n31"))
+        self.pigs.append(Pig(self.scale_pos(base_x2 + 25, 220)[0], self.scale_pos(base_x2 + 25, 220)[1], self.space, 10,"n41"))
 
+        # Topper
+        self.columns.append(Polygon(self.scale_pos(base_x2, 250), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x2, 298), 70, 20, self.space, wood_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x2, 330)[0], self.scale_pos(base_x2, 330)[1], self.space, 15,"n51"))
 
-        
-
-        p = self.scale_pos(700,510)
-        self.circles.append(Polygon(p,20,20,self.space, wood_hp , "circles", self.screen_height, self.screen_width))
-        p = self.scale_pos(600,510)
-        self.circles.append(Polygon(p,20,20,self.space, stone_hp , "circles", self.screen_height, self.screen_width))
-        p = self.scale_pos(550,510)
-        self.circles.append(Polygon(p,20,20,self.space, ice_hp , "circles", self.screen_height, self.screen_width))
-        
-        p = self.scale_pos(200,320)
-        self.triangles.append(Polygon(p, 30, 30, self.space, stone_hp, "triangles", self.screen_height, self.screen_width))
-        p = self.scale_pos(200,370)
-        self.triangles.append(Polygon(p, 30, 30, self.space, ice_hp, "triangles", self.screen_height, self.screen_width))
-        p = self.scale_pos(150,350)
-        self.triangles.append(Polygon(p, 30, 30, self.space, wood_hp, "triangles", self.screen_height, self.screen_width))
-        p = self.scale_pos(200,320)
-        self.triangles.append(Polygon(p, 30, 30, self.space, stone_hp, "triangles", self.screen_height, self.screen_width))
-        p = self.scale_pos(200,370)
-        self.triangles.append(Polygon(p, 30, 30, self.space, ice_hp, "triangles", self.screen_height, self.screen_width))
-        p = self.scale_pos(220,350)
-        self.triangles.append(Polygon(p, 30, 30, self.space, wood_hp, "triangles", self.screen_height, self.screen_width))
+        # --- Some floating/precarious elements ---
+        self.circles.append(Polygon(self.scale_pos(base_x1 + 100, 350), 20, 20, self.space, ice_hp, "circles", self.screen_height, self.screen_width, radius=20))
+        self.triangles.append(Polygon(self.scale_pos(base_x2 - 100, 300), 30, 30, self.space, wood_hp, "triangles", self.screen_height, self.screen_width))
 
         if self.bool_space:
             self.number_of_birds = 8
@@ -179,51 +143,55 @@ class Level():
 
 
     def build_2(self):
-        """Builds level 2."""
         self.number = 2
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
-        self.number_of_birds = 5 # added number of birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]
+        self.number_of_birds = 5 
         locked = True
-        pig1 = Pig(800,230,self.space,13, "n11") # Added id
-        #pig2 = Pig(985,130,self.space)
-        
-        self.pigs.append(pig1)
-        #self.pigs.append(pig2)
 
-        # create beam and column
+        # --- Tall Stone Tower with Wooden Top ---
+        base_x = 850
+        current_y = 150
 
-        p = (900,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp, "columns", self.screen_height, self.screen_width))
-        
-        p = (1010,150)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
-        
-        p = (950,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
-        
-        p = (1010,260)
-        self.columns.append(Polygon(p,20,85,self.space,wood_hp , "columns", self.screen_height, self.screen_width))
+        # Layer 1 (Stone Base)
+        self.columns.append(Polygon(self.scale_pos(base_x - 40, current_y), 20, 85, self.space, stone_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x + 40, current_y), 20, 85, self.space, stone_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x, current_y + 48), 100, 20, self.space, stone_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x, current_y + 70)[0], self.scale_pos(base_x, current_y + 70)[1], self.space, 13, "n11"))
+        current_y += 100
 
+        # Layer 2 (Ice Middle)
+        self.columns.append(Polygon(self.scale_pos(base_x - 30, current_y), 20, 85, self.space, ice_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x + 30, current_y), 20, 85, self.space, ice_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x, current_y + 48), 80, 20, self.space, ice_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x, current_y + 70)[0], self.scale_pos(base_x, current_y + 70)[1], self.space, 10, "n21"))
+        current_y += 100
 
-        p = (980,220)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
-        
-        p = (980,310)
-        self.beams.append(Polygon(p,85,20,self.space,wood_hp , "beams", self.screen_height, self.screen_width))
+        # Layer 3 (Wood Top)
+        self.columns.append(Polygon(self.scale_pos(base_x - 20, current_y), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        self.columns.append(Polygon(self.scale_pos(base_x + 20, current_y), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        self.beams.append(Polygon(self.scale_pos(base_x, current_y + 48), 60, 20, self.space, wood_hp, "beams", self.screen_height, self.screen_width))
+        self.pigs.append(Pig(self.scale_pos(base_x, current_y + 70)[0], self.scale_pos(base_x, current_y + 70)[1], self.space, 15, "n31"))
 
-        self.number_of_birds = 4
+        # --- Small side structure with triangles ---
+        side_x = 600
+        self.columns.append(Polygon(self.scale_pos(side_x, 150), 20, 85, self.space, wood_hp, "columns", self.screen_height, self.screen_width))
+        # Triangle points for a small roof
+        triangle_points = [(-25, 0), (25, 0), (0, 25)] # Scaled by Polygon class
+        self.triangles.append(Polygon(self.scale_pos(side_x, 205), 50, 25, self.space, wood_hp, "triangles", self.screen_height, self.screen_width, triangle_points=triangle_points))
+        self.pigs.append(Pig(self.scale_pos(side_x, 160)[0], self.scale_pos(side_x, 160)[1], self.space, 10, "n41"))
+
+        # self.number_of_birds = 4 # This was already 5 above, keeping it at 5
         if self.bool_space:
             self.number_of_birds = 8
     
     
     def build_3(self):
-        """Builds level 3."""
         self.number = 3
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
-        self.number_of_birds = 5 # added number of birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] 
+        self.number_of_birds = 5
         locked = True
-        pig1 = Pig(980,230,self.space,13, "n11") # Added id
-        pig2 = Pig(985,130,self.space,31, "n21") # Added id
+        pig1 = Pig(980,230,self.space,13, "n11")
+        pig2 = Pig(985,130,self.space,31, "n21") #
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -256,13 +224,12 @@ class Level():
     
     
     def build_4(self):
-        """Builds level 4."""
         self.number = 4
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
-        self.number_of_birds = 5 # added number of birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]
+        self.number_of_birds = 5 
         locked = True
-        pig1 = Pig(980,230,self.space,31, "n11") # Added id
-        pig2 = Pig(985,130,self.space,13, "n21") # Added id
+        pig1 = Pig(980,230,self.space,31, "n11")
+        pig2 = Pig(985,130,self.space,13, "n21") 
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -295,13 +262,12 @@ class Level():
     
     
     def build_5(self):
-        """Builds level 5."""
         self.number = 5
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
-        self.number_of_birds = 5 # added number of birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] 
+        self.number_of_birds = 5
         locked = True
-        pig1 = Pig(980,230,self.space,13, "n11") # Added id
-        pig2 = Pig(985,130,self.space,31, "n21") # Added id
+        pig1 = Pig(980,230,self.space,13, "n11") 
+        pig2 = Pig(985,130,self.space,31, "n21")
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -334,14 +300,13 @@ class Level():
     
     
     def build_6(self):
-        """Builds level 6."""
         self.number = 6
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] # Added level birds
-        self.number_of_birds = 5 # added number of birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] 
+        self.number_of_birds = 5
         locked = True
-        pig1 = Pig(980,230,self.space,13, "n11") # Added id
+        pig1 = Pig(980,230,self.space,13, "n11") 
         pig1.life = 40
-        pig2 = Pig(985,130,self.space,31, "n21") # Added id
+        pig2 = Pig(985,130,self.space,31, "n21") 
 
         self.pigs.append(pig1)
         self.pigs.append(pig2)
@@ -373,9 +338,8 @@ class Level():
             self.number_of_birds = 8
 
     def build_7(self):
-        """Builds level 7."""
         self.number = 7
-        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"]  # Added level birds
+        self.level_birds = ["sahur","liri","sahur","palocleves","palocleves"] 
         self.number_of_birds = 5
         locked = True
 
@@ -410,9 +374,8 @@ class Level():
             self.number_of_birds = 8
 
     def build_8(self):
-        """Builds level 8."""
         self.number = 8
-        self.level_birds = ["sahur", "liri", "sahur", "palocleves", "palocleves"]  # Added level birds.
+        self.level_birds = ["sahur", "liri", "sahur", "palocleves", "palocleves"]  
         self.number_of_birds = 5
         locked = True
 
@@ -450,11 +413,6 @@ class Level():
             self.number_of_birds = 8
     
     def load_level(self):
-        """Loads the level based on the current level number."""
-        
-        
-        
-        
         try:
             build_name = "build_" + str(self.number)
             if hasattr(self, build_name):
@@ -462,8 +420,8 @@ class Level():
             else:
                 print(f"Warning: Level-Build-Methode '{build_name}' nicht gefunden. Lade Standard-Level.")
                 self.number = 1
-                self.build_1()  # Call build_1 to load a default level.  Important!
+                self.build_1() 
         except AttributeError as e:
             print(f"Fehler beim Laden des Levels: {e}")
             self.number = 1
-            self.load_level() # Recursive call to try loading level 1 if there is an error
+            self.load_level() 
