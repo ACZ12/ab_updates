@@ -6,13 +6,22 @@ import sys
 import os
 
 def load_resource(path):
+    """
+    Helper to get resource paths, works for normal run & PyInstaller bundle.
+    Also handles if the path is already absolute.
+    """
+    if os.path.isabs(path): # If path is already absolute, return it directly
+        return path
     if hasattr(sys, '_MEIPASS'):
-        return os.path.join(sys._MEIPASS, path)
+        # PyInstaller bundles stuff here
+        base_path = sys._MEIPASS
     else:
-        return os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
+        # Normal execution path
+        base_path = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_path, path)
 
 class Polygon():
-    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, bird_pos=None, mass=5.0, radius=15.0, triangle_points=None, image_path=None):
+    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None, image_path=None):
         self.life = life
         self.element_type = element_type
         self.length = length # Store for drawing, might be None for circles
@@ -23,7 +32,7 @@ class Polygon():
         current_shape = None
 
         if element_type == "bats":
-            if image_path is None:
+            if image_path is None: # Bats need their image path
                 raise ValueError("image_path must be provided for bats element_type")
             self.original_image = pg.image.load(image_path).convert_alpha()
             
@@ -46,15 +55,15 @@ class Polygon():
             current_shape.friction = 0.5 # Bat-specific friction
             # collision_type will be set commonly below
 
-        elif element_type in ["columns", "beams"]:
-            moment = pm.moment_for_box(mass, (length, height)) # Calculate moment
+        elif element_type in ["columns", "beams"]: # Handles rectangular dynamic objects
+            moment = pm.moment_for_box(mass, (length, height))
             current_body = pm.Body(mass, moment)
             current_body.position = Vec2d(*pos)
             current_shape = pm.Poly.create_box(current_body, (length, height))
             self.original_image = self.load_image(element_type)
 
         elif element_type == "circles":
-            moment = pm.moment_for_circle(mass, 0, radius, (0,0)) # Calculate moment
+            moment = pm.moment_for_circle(mass, 0, radius, (0,0))
             current_body = pm.Body(mass, moment)
             current_body.position = Vec2d(*pos)
             current_shape = pm.Circle(current_body, radius, (0,0))
@@ -99,7 +108,7 @@ class Polygon():
 
         if self.body and self.shape:
             space.add(self.body, self.shape) # Add to space
-
+        # Base dimensions for scaling calculations
         self.base_width = 1200
         self.base_height = 650
         
@@ -118,7 +127,7 @@ class Polygon():
         return int(width * self.scale_x), int(height * self.scale_y)
 
     def is_clockwise(self, points):
-
+        # Determines if a set of polygon vertices are in clockwise order
         n = len(points)
         if n < 3:
             return False
@@ -130,7 +139,6 @@ class Polygon():
         return sum > 0
 
     def load_image(self, element_type):
-        #print("load image called")
         texture = None
         if self.life == 20:
             texture = pg.image.load(load_resource("./resources/images/wood3.png")).convert_alpha()
@@ -139,13 +147,14 @@ class Polygon():
         elif self.life == 10:
             texture = pg.image.load(load_resource("./resources/images/ice.png")).convert_alpha()
 
+        # Define sub-rectangles for textures
         wod1 = pg.Rect(131, 301, 154-131, 548-301)
         wod2 = pg.Rect(45, 255, 90-45, 299-255)
         wod3 = pg.Rect(86,102,161-86,202-102)
         ston1 = pg.Rect(181, 285, 205-181, 501-285)
         ston2 = pg.Rect(44, 247, 82-44, 287-247)
         ston3 = pg.Rect(165,106,241-165,193-106)
-        #print(f"element type: {element_type}")
+
         image = None
         
         if element_type == "beams":
@@ -153,7 +162,7 @@ class Polygon():
                 image = pg.transform.rotate(texture.subsurface(wod1).copy(), 90) # Rotated here
             elif self.life == 30:
                 image = pg.transform.rotate(texture.subsurface(ston1).copy(), 90) # Rotated here
-            elif self.life == 10:
+            elif self.life == 10: # Ice beams use wood texture for now
                 image = pg.transform.rotate(texture.subsurface(wod1).copy(), 90) # Rotated here
                 
         elif element_type == "columns":
@@ -161,7 +170,7 @@ class Polygon():
                 image = texture.subsurface(wod1).copy()
             elif self.life == 30:
                 image = texture.subsurface(ston1).copy()
-            elif self.life == 10:
+            elif self.life == 10: # Ice columns use wood texture
                 image = texture.subsurface(wod1).copy()
                 
         elif element_type == "circles":
@@ -169,7 +178,7 @@ class Polygon():
                 image = texture.subsurface(wod2).copy()
             elif self.life == 30:
                 image = texture.subsurface(ston2).copy()
-            elif self.life == 10:
+            elif self.life == 10: # Ice circles use wood texture
                 image = texture.subsurface(wod2).copy()
                 
         elif element_type == "triangles":
@@ -177,10 +186,9 @@ class Polygon():
                 image = texture.subsurface(wod3).copy()
             elif self.life == 30:
                 image = texture.subsurface(ston3).copy()
-            elif self.life == 10:
+            elif self.life == 10: # Ice triangles use wood texture
                 image = texture.subsurface(wod3).copy()
         
-        #print(image)
         return image # image zurückgeben
 
     def to_pygame(self, p):
@@ -192,7 +200,7 @@ class Polygon():
             # Use the shape's actual body position for calculating vertices
             current_body_pos = shape.body.position
             absolute_ps = [(v.x + current_body_pos.x, v.y + current_body_pos.y) for v in ps] # Always use shape.body.position
-            absolute_ps.append(absolute_ps[0]) # Schließe das Polygon
+            absolute_ps.append(absolute_ps[0]) # Close the polygon for drawing
             ps_pygame = [self.to_pygame(Vec2d(x, y)) for x, y in absolute_ps]
             # pg.draw.lines(screen, (255, 0, 0), True, ps_pygame, width=3) # Uncomment for debugging outline
 
@@ -211,7 +219,7 @@ class Polygon():
                 if self.element_type != "triangles": # Original logic for columns, beams, (and now bats)
                     angle_degrees = math.degrees(shape.body.angle)
                 else: # Triangles
-                    angle_degrees = math.degrees(shape.body.angle) -90
+                    angle_degrees = math.degrees(shape.body.angle) -90 # Specific rotation for triangle assets
 
                 rotated_image = pg.transform.rotate(scaled_image, angle_degrees)
 
@@ -243,12 +251,11 @@ class Static_line():
         self.static_lines = [pm.Segment(self.static_body, (0.0, 130.0), (1200.0, 130.0), 0.0)]
         for line in self.static_lines:
             line.elasticity = 0.95
-            line.collision_type = 3
+            line.collision_type = 3 # Collision type for ground
             line.friction = 1
         self.space.add(self.static_body, *self.static_lines)
         
         
     
     def scale_pos(self, x, y):
-        """Scale the given coordinates based on the current window size."""
         return x * self.scale_x, y * self.scale_y

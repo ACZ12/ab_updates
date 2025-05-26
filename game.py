@@ -15,7 +15,7 @@ import shutil
 import json
 from pymunk import Vec2d
 import random
-from Polygon import Static_line
+from Polygon import Static_line, Polygon # Assuming Polygon.py is in the same directory
 
 # GLOBALS
 bird = None
@@ -199,12 +199,12 @@ def main_loop():
 
 
     def load_resource(path):
-        """Gets the absolute path to a resource, handling both bundled and unbundled."""
+        """Helper to get resource paths, works for normal run & PyInstaller bundle."""
         if hasattr(sys, '_MEIPASS'):
-            # PyInstaller creates a temp folder and stores path in _MEIPASS
+            # PyInstaller bundles stuff here
             return os.path.join(sys._MEIPASS, path)
         else:
-            # We are running in a regular Python environment
+            # Normal execution path
             return os.path.join(os.path.dirname(os.path.abspath(__file__)), path)
 
     bg = pg.image.load(load_resource("./resources/images/bg.png")).convert_alpha()
@@ -287,10 +287,10 @@ def main_loop():
     star2 = pg.transform.scale(star2, (star2_scaled_width, star2_scaled_height))
 
     # Calculate initial scaled dimensions
-    slingl_scaled_width = int(slingl.get_width() * 0.135)
-    slingl_scaled_height = int(slingl.get_height() * 0.135)
-    slingr_scaled_width = int(slingr.get_width() * 0.05)
-    slingr_scaled_height = int(slingr.get_height() * 0.05)
+    slingl_scaled_width = int(slingl.get_width() * 0.135)  # design const
+    slingl_scaled_height = int(slingl.get_height() * 0.135) # design const
+    slingr_scaled_width = int(slingr.get_width() * 0.05) # design const
+    slingr_scaled_height = int(slingr.get_height() * 0.05) # design const
     
     # Initial scaling of sling images
     slingl = pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
@@ -355,11 +355,11 @@ def main_loop():
         return scale_pos(x, y)
 
     def vector(p0, p1):  # return vector of p1 and p2
-        a = p1[0] - p0[0]
-        b = p1[1] - p0[1]
+        a = p1[0] - p0[0] # x component
+        b = p1[1] - p0[1] # y component
         return a, b
 
-    def unit_vector(v):
+    def unit_vector(v): # get unit vector
         h = ((v[0] ** 2 + (v[1] ** 2)) ** 0.5)
         if h == 0:
             h = 0.000000000000001
@@ -367,7 +367,7 @@ def main_loop():
         ub = v[1] / h
         return ua, ub
 
-    def distance(x0, y0, x, y):
+    def distance(x0, y0, x, y): # calculate distance between two points
         dx = x - x0
         dy = y - y0
         d = ((dx ** 2) + (dy ** 2)) ** 0.5
@@ -375,7 +375,7 @@ def main_loop():
 
     def sling_action(): # change pos of sling
         global launch_angle
-        global x_mouse
+        global x_mouse # mouse coords are global
         global y_mouse
         global impulse_x
         global impulse_y
@@ -387,10 +387,10 @@ def main_loop():
         mx, my = x_mouse, y_mouse
 
         v = vector((sx, sy), (mx, my))
-        uv = unit_vector(v)
+        uv = unit_vector(v) # unit vector for direction
         uv1 = uv[0]
         uv2 = uv[1]
-
+        # distance from sling anchor to mouse
         mouse_distance_raw = distance(sx, sy, mx, my)
 
         if mouse_distance_raw > rope_length:
@@ -398,7 +398,7 @@ def main_loop():
             pu = uv1 * rope_length + sx, uv2 * rope_length + sy
             x_sahur = pu[0] - sahur.get_width() // 2
             y_sahur = pu[1] - sahur.get_height() // 2
-
+            # Draw bird and sling lines if bird is available
             if len(level.level_birds) >= 0:
 
                 screen.blit(bird_img, (x_sahur, y_sahur))
@@ -411,7 +411,7 @@ def main_loop():
             pu = mx, my
             x_sahur = mx - sahur.get_width() // 2
             y_sahur = my - sahur.get_height() // 2
-
+            # Draw bird and sling lines if bird is available
             if len(level.level_birds) >= 0:
 
                 screen.blit(bird_img, (x_sahur, y_sahur))
@@ -419,7 +419,7 @@ def main_loop():
                 slingr_x, slingr_y = get_sling_positions()
                 pg.draw.line(screen, (0, 0, 0), (slingr_x + 4 * scale_x, slingr_y + 3 * scale_y), (mx, my), 5)
                 pg.draw.line(screen, (0, 0, 0), (slingl_x + 2 * scale_x, slingl_y + 13 * scale_y), (mx, my), 5)
-
+        # calculate angle for launch
         dy = sy - pu[1]
         dx = sx - pu[0]
         if dx == 0:
@@ -433,8 +433,8 @@ def main_loop():
         mouse_pressed_to_shoot = False
         restart_counter = False
 
-        # 1. Process and remove ability polygons associated with birds
-        #    These are often in the 'columns' list.
+        # First, clean up any ability polygons (like Sahur's bat)
+        # These are often tracked in the 'columns' list.
         for bird_instance in list(birds): # Iterate a copy
             if hasattr(bird_instance, 'ability_polygon') and bird_instance.ability_polygon:
                 poly = bird_instance.ability_polygon
@@ -445,21 +445,21 @@ def main_loop():
                     columns.remove(poly)
                 bird_instance.ability_polygon = None # Nullify bird's reference
 
-        # 2. Remove birds
+        # Next, remove all active birds from the game and space
         for bird_instance in list(birds): # Iterate a copy
             if bird_instance.shape and bird_instance.body and bird_instance.shape in space.shapes:
                 space.remove(bird_instance.shape, bird_instance.body)
         birds.clear()
 
-        # 3. Remove pigs
+        # Then, remove all pigs
         for pig_instance in list(pigs): # Iterate a copy
             if pig_instance.shape and pig_instance.body and pig_instance.shape in space.shapes:
                 space.remove(pig_instance.shape, pig_instance.body)
         pigs.clear()
 
-        # 4. Remove general polygons (columns, beams, circles, triangles)
-        #    Some columns might have already been removed if they were ability polygons.
-        #    The Polygon class has an 'in_space' attribute.
+        # Finally, clear out all other game elements (blocks, etc.)
+        # Note: some 'columns' might be ability polygons already removed.
+        # The Polygon class's 'in_space' helps track this.
         
         # Columns
         for column_item in list(columns):
@@ -493,7 +493,7 @@ def main_loop():
         a, b = arbiter.shapes
         bird_body = a.body
         pig_body = b.body
-        bird_momentum = bird_body.mass * bird_body.velocity.length
+        bird_momentum = bird_body.mass * bird_body.velocity.length # for damage calc
         base_damage = 0
         momentum_damage_factor = 0.99 # Further increased from 0.66
         damage = base_damage + (bird_momentum * momentum_damage_factor)
@@ -501,7 +501,7 @@ def main_loop():
         pig_to_remove = []
         for pig in pigs:
             if pig.body == pig_body and bird_momentum > 25:
-                pig.life -= damage
+                pig.life -= damage # deal damage
                 if pig.life <= 0:
                     pig_to_remove.append(pig)
                     global score
@@ -520,7 +520,7 @@ def main_loop():
         a, b = arbiter.shapes
         bird_body = a.body
         wood_body = b.body  # Get the wood's body.  Need this.
-        bird_momentum = bird_body.mass * bird_body.velocity.length # Calculate bird momentum
+        bird_momentum = bird_body.mass * bird_body.velocity.length # Bird's momentum
 
         base_damage = 0
         momentum_damage_factor = 0.13
@@ -529,7 +529,7 @@ def main_loop():
         if arbiter.total_impulse.length > 2000:
             for element in columns + circles + beams + triangles:
                 if element.shape.body == wood_body:  # Change to check the body
-                    element.life -= damage  # Apply damage
+                    element.life -= damage
                     if element.life <= 0:
                         element_to_remove.append(element)
                         global score
@@ -563,12 +563,12 @@ def main_loop():
         damage_amount = 0
         should_damage_pig = False
 
-        if is_sahurs_bat_collision:
+        if is_sahurs_bat_collision: # Sahur's bat is special
             # Sahur's bat hitting a pig: use a very low impulse threshold
             if arbiter.total_impulse.length > 10.0: # Minimal impulse to confirm "real" collision
                 damage_amount = 1000 # Further increased from 750 for Sahur's bat
                 should_damage_pig = True
-        else:
+        else: # Regular wood/poly collision
             # Regular wood/poly hitting a pig: use the standard higher impulse threshold
             if arbiter.total_impulse.length > ABILITY_COLLISION_IMPULSE_THRESHOLD: # e.g., 2000.0
                 damage_amount = 60 # Further increased from 40 for regular polygon damage
@@ -577,7 +577,7 @@ def main_loop():
         if should_damage_pig and damage_amount > 0:
             for pig in pigs:
                 if pig.shape == pig_shape:
-                    pig.life -= damage_amount
+                    pig.life -= damage_amount # Deal damage to pig
                     if pig.life <= 0:
                         pig_to_remove.append(pig)
                         global score
@@ -592,7 +592,7 @@ def main_loop():
         # Determine which shape is the bird (type 0) and which is the ground (type 3)
         bird_shape, ground_shape = arbiter.shapes
         if bird_shape.collision_type != 0: # Ensure shape_a is the bird
-            bird_shape, ground_shape = ground_shape, bird_shape
+            bird_shape, ground_shape = ground_shape, bird_shape # Swap them
         
         if bird_shape.collision_type == 0 and ground_shape.collision_type == 3:
             colliding_bird_instance = None
@@ -605,12 +605,12 @@ def main_loop():
                 # Check if the ground shape's body is part of the static floor lines
                 for ground_line in floor.static_lines:
                     if ground_line.body == ground_shape.body:
-                        impact_velocity_reduction_threshold = 3000 # Example value
-                        velocity_reduction_factor = 0.3 # Example value
+                        impact_velocity_reduction_threshold = 3000 # Threshold for hard hit
+                        velocity_reduction_factor = 0.3 # How much to slow down
                         if arbiter.total_impulse.length > impact_velocity_reduction_threshold:
                             colliding_bird_instance.body.velocity *= (1 - velocity_reduction_factor*2)
                         colliding_bird_instance.bird_hit_ground = True
-                        break # Found the ground segment, no need to check further
+                        break # Found the ground, stop checking
                 
     def post_solve_poly_vs_poly(arbiter, space, data):
         global columns, beams, circles, triangles, score, birds # Ensure all necessary globals are accessible
@@ -631,7 +631,7 @@ def main_loop():
                 break
 
         if not poly_a_obj or not poly_b_obj:
-            # This might happen if one of the shapes is not a tracked Polygon object
+            # One or both shapes aren't our Polygon objects, bail.
             return
 
         # --- Part 1: Handle Active Special Ability Polygons (e.g., Sahur's Bat, Glorbo's Projectile) ---
@@ -665,11 +665,11 @@ def main_loop():
                 score_for_ability_destroy = 1000
 
                 if isinstance(source_bird_for_ability, ch.Sahur):
-                    # Sahur's bat: use a very low impulse threshold
+                    # Sahur's bat: very low impulse threshold for damage
                     if arbiter.total_impulse.length > 10.0:
                         damage_from_ability = 500 # Increased damage for Sahur's bat on polygons
                         apply_ability_damage = True
-                elif isinstance(source_bird_for_ability, ch.Glorbo):
+                elif isinstance(source_bird_for_ability, ch.Glorbo): # Glorbo's projectile (if any)
                     pass # Glorbo no longer has a damaging projectile, this path can be removed or left empty.
                 
                 if apply_ability_damage and damage_from_ability > 0:
@@ -687,7 +687,7 @@ def main_loop():
                     elif element in beams: beams.remove(element)
                     elif element in circles: circles.remove(element)
                     elif element in triangles: triangles.remove(element)
-            return # Active ability collision handled, do not proceed to general poly-poly.
+            return # Active ability collision handled, skip general poly-poly.
 
         # --- Part 2: Handle General Polygon-on-Polygon Collisions ---
         # This part executes if NEITHER poly_a_obj nor poly_b_obj is an ACTIVE ability item of the LATEST bird.
@@ -773,27 +773,27 @@ def main_loop():
         global slingr_scaled_height
         global levels_drawn
         nonlocal screen, screen_width, screen_height, scale_x, scale_y # bg is global, not nonlocal here
-        # slingl, slingr are global and modified
+        # slingl, slingr are global, will be modified
 
         # Re-initialize in resizable mode with event dimensions
         screen = pg.display.set_mode((event.w, event.h), pg.RESIZABLE)
         
         # Update global screen dimensions and scaling factors
-        screen_width = event.w
-        screen_height = event.h
+        screen_width, screen_height = event.w, event.h
         
         scale_x = screen_width / base_width
         scale_y = screen_height / base_height
 
         # Redraw the screen immediately after resize
-        screen.fill((130, 200, 100))
+        screen.fill((130, 200, 100)) # Or your bg color
         bg_scaled = pg.transform.scale(bg, (screen_width, screen_height))
         screen.blit(bg_scaled, (0, 0))
 
         # Rescale sling images using their current scaled design dimensions
+        # These are the *design* dimensions, scale_size will apply current screen scaling
         slingl=pg.transform.scale(slingl, scale_size(slingl_scaled_width, slingl_scaled_height))
         slingr=pg.transform.scale(slingr, scale_size(slingr_scaled_width, slingr_scaled_height))
-
+        # If in levels menu, need to redraw it
         if game_state == 6:
             levels_drawn = False
             draw_levels()
@@ -802,7 +802,7 @@ def main_loop():
     while running:
         
         stop_button_rect = stop_button.get_rect(topleft=(8, 8))
-        mouse_button_down = False  # Flag to track if mouse button is pressed
+        mouse_button_down = False  # Track if mouse button is pressed this frame
         
 
         for event in pg.event.get():
@@ -814,13 +814,13 @@ def main_loop():
                 handle_resize(event)
             elif game_state == 0:
                 if event.type == pg.MOUSEBUTTONDOWN and event.button == 1:
-                    mouse_button_down = True
+                    mouse_button_down = True # Flag it for this frame
                     print("mouse down")
                     
 
                 elif event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     mouse_button_down = False
-                    x_mouse, y_mouse = event.pos
+                    x_mouse, y_mouse = event.pos # Capture mouse up position
                     if stop_button_rect.collidepoint(event.pos):
                         game_state = 5
                         menu_open = True
@@ -828,7 +828,7 @@ def main_loop():
                     if mouse_pressed_to_shoot:
                         pu = scale_pos(140, 420)
                         mouse_pressed_to_shoot = False
-
+                        # Launch a bird
                         if level.number_of_birds > 0:
                             level.number_of_birds -= 1
                             t1 = time.time() * 1000
@@ -842,7 +842,7 @@ def main_loop():
                             
                             # Update bird starting position to align with sling
                             bird_x = sx
-                            bird_y = sy - 180 # Adjust vertical offset based on scale
+                            bird_y = sy - 180 # Adjust vertical offset (might need scaling)
                             bird_x, bird_y = bird_x, bird_y
                             #print(f"levlebirds: {level.level_birds}")
                             bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level)
@@ -853,7 +853,7 @@ def main_loop():
                                 
 
                             if level.number_of_birds == 0:
-                                t2 = time.time()
+                                t2 = time.time() # For timing or other logic if needed
                     else:
                         if birds: # Check if there's an active bird
                             active_bird = birds[-1]
@@ -867,7 +867,7 @@ def main_loop():
                             
                             if can_use_ability:
                                 active_bird.fahigkeit()
-                                # Bird's own fahigkeit() method sets its fahigkeit_verwendet flag.
+                                # Bird's fahigkeit() method handles setting its own 'fahigkeit_verwendet'
             elif game_state == 5:
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
@@ -965,7 +965,7 @@ def main_loop():
                                             score = 0
                                             bonus_score_once = True
                                             break
-                        b_size_scaled = scale_size(menu_button.get_width(),menu_button.get_height())
+                        b_size_scaled = scale_size(menu_button.get_width(),menu_button.get_height()) # Scaled menu button
                         if (101 + b_size_scaled[0] > x_mouse > 101 and
                                 51 + b_size_scaled[1] > y_mouse > 51):
                             game_state = 0
@@ -988,10 +988,10 @@ def main_loop():
             if pg.mouse.get_pressed()[0] and (110 * scale_x < x_mouse < 170 * scale_x and 250 * scale_y < y_mouse < 400 * scale_y):
                 mouse_pressed_to_shoot = True
 
-            #screen.blit(slingr, scale_pos(130, 400))
+            # screen.blit(slingr, scale_pos(130, 400)) # Example of old/debug code?
             
-            # birds behind sling
-            if level.number_of_birds > 0:
+            # Draw birds waiting behind the sling
+            if level.number_of_birds > 0: # If there are birds left to shoot
                 #print(level.number_of_birds,level.level_birds)
                 for i in range(level.number_of_birds-1):
                     print(i)
@@ -1006,10 +1006,10 @@ def main_loop():
                     except FileNotFoundError:
                         print(f"Error: Bird image not found for {bird_type}")
             if mouse_pressed_to_shoot and level.number_of_birds > 0:
-                sling_action()
+                sling_action() # Handles drawing bird in stretched sling
                 
-            # bird sitting in sling
-            elif level.number_of_birds > 0:
+            # Draw bird in the sling if ready (not being dragged)
+            elif level.number_of_birds > 0: # Bird is waiting in sling
                 slingl_x, slingl_y = get_sling_positions()
                 slingr_x, slingr_y = get_sling_positions()
                 screen.blit(bird_img, scale_pos(130, 370))
@@ -1018,7 +1018,7 @@ def main_loop():
                 
                 screen.blit(slingl, (slingl_x, slingl_y))
                 screen.blit(slingr, (slingr_x, slingr_y))
-            else:
+            else: # No birds left, draw empty sling
                 default_x = 140 * scale_x
                 default_y = 420 * scale_y
                 slingl_x, slingl_y = get_sling_positions()
@@ -1036,59 +1036,59 @@ def main_loop():
                 x, y = p
                 angle_degree = math.degrees(bird.shape.body.angle)
                 
-                # Determine base design size from bird's scale attribute
+                # Get bird's base design size (e.g., 30x30, 50x50)
                 base_design_width = bird.scale[0]
                 base_design_height = bird.scale[1]
 
-                # --- Gradual Visual Scaling for Glorbo ---
-                current_bird_visual_scale_multiplier = 1.0 # Default for non-Glorbo or non-active Glorbo
+                # --- Glorbo's visual growth effect ---
+                current_bird_visual_scale_multiplier = 1.0 # Default for other birds or inactive Glorbo
                 if isinstance(bird, ch.Glorbo) and bird.is_ability_visually_active:
-                    if bird.is_growing: # Visual growth happens alongside physical growth
+                    if bird.is_growing: # Visual grows with physical
                         time_since_activation = time.time() - bird.ability_activation_time
                         growth_progress = min(time_since_activation / bird.growth_duration, 1.0)
                         
                         bird.current_visual_scale_multiplier = bird.initial_visual_scale + \
                             (bird.ability_visual_scale_multiplier - bird.initial_visual_scale) * growth_progress
                         current_bird_visual_scale_multiplier = bird.current_visual_scale_multiplier
-                    elif bird.fahigkeit_verwendet: # If ability used and growth finished
+                    elif bird.fahigkeit_verwendet: # If grown and ability used, keep large size
                         current_bird_visual_scale_multiplier = bird.ability_visual_scale_multiplier
-                    # else: if ability not active (is_ability_visually_active is false), it remains 1.0
+                    # else: if ability not active, it remains 1.0 (default)
                                 
-                # Calculate final pixel dimensions for scaling, incorporating screen resize factors (scale_x, scale_y)
-                # (Design Size * Current Visual Multiplier for Bird) * Screen Resize Factor
+                # Final pixel size for the bird, including screen scaling
+                # Formula: (DesignSize * VisualMultiplier) * ScreenScale
                 final_pixel_width = int(base_design_width * current_bird_visual_scale_multiplier * scale_x)
                 final_pixel_height = int(base_design_height * current_bird_visual_scale_multiplier * scale_y)
 
-                # Load the original bird image (important to load fresh for quality)
+                # Load fresh image for best scaling quality
                 original_bird_surface = pg.image.load(load_resource(bird.img)).convert_alpha()
                 
-                # Scale the original image to the final calculated dimensions
+                # Scale it
                 scaled_bird_surface = pg.transform.scale(original_bird_surface, (final_pixel_width, final_pixel_height))
                 
-                # Rotate the scaled image
+                # And rotate
                 rotated_image = pg.transform.rotate(scaled_bird_surface, angle_degree)
 
-                # --- Glorbo's Physical Growth (Hitbox, Mass, Inertia) ---
+                # --- Glorbo's physics growth (hitbox, mass) ---
                 if isinstance(bird, ch.Glorbo) and bird.is_growing:
-                    time_since_activation = time.time() - bird.ability_activation_time # Can be reused if visual calculated it
+                    time_since_activation = time.time() - bird.ability_activation_time # Reuse time_since_activation
                     growth_progress = min(time_since_activation / bird.growth_duration, 1.0)
 
-                    # Calculate the target physical radius based on the visual scale.
-                    # The initial visual "radius" is half of its base design width (from bird.scale).
+                    # Target physical radius based on visual scale
+                    # Visual "radius" is half its design width
                     initial_visual_design_radius = bird.scale[0] / 2.0
                     desired_target_physical_radius = initial_visual_design_radius * bird.ability_visual_scale_multiplier
                     
-                    # Interpolate current physical radius from its state at activation to the desired target.
-                    # bird.initial_physical_radius is the Pymunk shape's radius when the ability was activated.
+                    # Lerp physical radius
+                    # initial_physical_radius was Pymunk radius at activation
                     current_physical_radius = bird.initial_physical_radius + \
                                               (desired_target_physical_radius - bird.initial_physical_radius) * growth_progress
                     
-                    # Mass scales with the square of the visual multiplier (area).
+                    # Mass scales with area (multiplier^2)
                     target_mass = bird.initial_mass * (bird.ability_visual_scale_multiplier ** 2)
                     current_mass = bird.initial_mass + (target_mass - bird.initial_mass) * growth_progress
                     bird.shape.unsafe_set_radius(current_physical_radius)
                     bird.body.mass = current_mass
-                    bird.body.moment = pm.moment_for_circle(current_mass, 0, current_physical_radius, (0,0))
+                    bird.body.moment = pm.moment_for_circle(current_mass, 0, current_physical_radius, (0,0)) # Update moment of inertia
                     space.reindex_shape(bird.shape)
 
                     if growth_progress >= 1.0:
@@ -1096,32 +1096,32 @@ def main_loop():
                         # Ensure final values are set precisely
                         bird.shape.unsafe_set_radius(desired_target_physical_radius)
                         bird.body.mass = target_mass # target_mass is already the final desired mass
-                        bird.body.moment = pm.moment_for_circle(target_mass, 0, desired_target_physical_radius, (0,0))
-                        space.reindex_shape(bird.shape) # Reindex one last time
+                        bird.body.moment = pm.moment_for_circle(target_mass, 0, desired_target_physical_radius, (0,0)) # Final moment
+                        space.reindex_shape(bird.shape) # Reindex shape one last time
                 
-                # Get dimensions of the final rotated image for blitting offset
+                # Offset for blitting rotated image
                 offset = Vec2d(*rotated_image.get_size()) / 2
-                blit_x = p[0] - offset[0] # Use p[0] (scaled center x) for blit position
-                blit_y = p[1] - offset[1] # Use p[1] (scaled center y) for blit position
+                blit_x = p[0] - offset[0] # Blit using scaled center x
+                blit_y = p[1] - offset[1] # Blit using scaled center y
                 
-                if not bird.bird_hit_ground: # Only add to path if bird is still "trailing"
-                    bird_path.append(p) # p is the scaled center position from to_pygame()
+                if not bird.bird_hit_ground: # Add to trail if bird hasn't hit ground
+                    bird_path.append(p) # p is already scaled center
                 
                 screen.blit(rotated_image, (blit_x, blit_y))
                 
                 if (bird.body.position.y < 0 or bird.body.position.x < -50 or
                         bird.body.position.x > screen_width + 50):
-                    print(f"bird removed: {bird.body.position}")
+                    #print(f"bird removed (out of bounds): {bird.body.position}")
                     bird_to_remove.append(bird)
                 
 
                 current_time = time.time() * 1000
-                if current_time - bird.launch_time > 7000:  # 7 seconds lifetime
+                if current_time - bird.launch_time > 7000:  # Birds live for 7 secs
                     bird_to_remove.append(bird)
-                    bird_path = []  # Clear path when *this* bird is removed
+                    bird_path = []  # Clear trail if this bird is removed due to timeout
 
             #for bird_to_remove in bird_to_remove:
-            #    if bird_to_remove in birds: #check if the bird is still in the list
+            #    if bird_to_remove in birds: # Check if the bird is still in the list
             #        space.remove(bird_to_remove.shape, bird_to_remove.body)
             #        birds.remove(bird_to_remove)
 
@@ -1129,46 +1129,45 @@ def main_loop():
             for i, point in enumerate(bird_path):
                 if i % 5 == 0:  # Draw every 5th stored point
                     # 'point' is already a scaled tuple (x, y) from to_pygame
-                    pg.draw.circle(screen, WHITE, point, 3) # Draw the point directly
+                    pg.draw.circle(screen, WHITE, point, 3) # Draw the trail dot
 
-            # Process birds marked for removal
-            # Iterate over a copy of bird_to_remove if modifying it directly,
-            # or clear it at the end.
-            processed_birds_this_frame = list(bird_to_remove) # Create a copy to iterate over
-            bird_to_remove.clear() # Clear the original list for the next frame's population
+            # Clean up birds marked for removal
+            # Iterate a copy if modifying the list, or clear original at end.
+            processed_birds_this_frame = list(bird_to_remove) # Copy to iterate safely
+            bird_to_remove.clear() # Clear original for next frame
 
             for bird_instance_to_remove in processed_birds_this_frame:
-                # Handle Sahur's ability polygon
+                # Sahur's bat cleanup
                 if isinstance(bird_instance_to_remove, ch.Sahur) and \
                    hasattr(bird_instance_to_remove, 'ability_polygon') and bird_instance_to_remove.ability_polygon:
                     poly_to_remove = bird_instance_to_remove.ability_polygon
                     if poly_to_remove in columns:
-                        # Only try to remove from Pymunk space if the shape is actually in it.
+                        # Only remove from Pymunk if it's there
                         if poly_to_remove.shape and poly_to_remove.shape in space.shapes:
                             space.remove(poly_to_remove.shape, poly_to_remove.body)
-                            poly_to_remove.in_space = False # Keep our game-logic flag consistent
+                            poly_to_remove.in_space = False # Keep our 'in_space' flag consistent
                         columns.remove(poly_to_remove)
                     bird_instance_to_remove.ability_polygon = None
 
-                # Glorbo no longer has an ability_polygon to clean up here.
+                # Glorbo: no ability polygon to clean
 
-                # Remove the bird itself
-                if bird_instance_to_remove in birds: # Check if still in list
+                # Remove the bird object
+                if bird_instance_to_remove in birds: # Double check it's still in birds list
                     if bird_instance_to_remove.body and bird_instance_to_remove.shape:
                         space.remove(bird_instance_to_remove.shape, bird_instance_to_remove.body)
                     birds.remove(bird_instance_to_remove)
             
-            if processed_birds_this_frame: # If any birds were removed this frame
-                bird_path = []  # Clear path
+            if processed_birds_this_frame: # If birds were removed, clear the trail
+                bird_path = []
 
             for pig in pigs:
                 if pig.shape.body.position.y < 0:
                     pig_to_remove.append(pig)
-                    #print(pigs)
+                    # print(pigs) # debug
             
             for pig in pig_to_remove:
                 space.remove(pig.body)
-                pigs.remove(pig)
+                pigs.remove(pig) # also remove from our list
 
             for line in floor.static_lines:
                 body = floor.static_body
@@ -1176,7 +1175,7 @@ def main_loop():
                 pv2 = body.position + line.b.rotated(body.angle)
                 p1 = to_pygame(pv1)
                 p2 = to_pygame(pv2)
-                pg.draw.lines(screen, TRANSP, False, [p1, p2])
+                pg.draw.lines(screen, TRANSP, False, [p1, p2]) # Draw transparent floor line (for debug?)
 
             for pig in pigs:
                 pig_to_remove = []
@@ -1187,31 +1186,31 @@ def main_loop():
                 angle_degree = math.degrees(pig.body.angle)
                 
                 if pigg.type == "n11":
-                    if pigg.life == 50: # Check for full health
+                    if pigg.life == 50: # Full health image
                         pig_img = pg.transform.scale(n11,(pigg.radius*2,pigg.radius*2))
-                    else:
+                    else: # Damaged image
                         pig_img = pg.transform.scale(n12,(pigg.radius*2,pigg.radius*2))
                 
                 elif pigg.type == "n21":
-                    if pigg.life == 50: # Check for full health
+                    if pigg.life == 50:
                         pig_img = pg.transform.scale(n21,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n22,(pigg.radius*2,pigg.radius*2))
                         
                 elif pigg.type == "n31":
-                    if pigg.life == 50: # Check for full health
+                    if pigg.life == 50:
                         pig_img = pg.transform.scale(n31,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n32,(pigg.radius*2,pigg.radius*2))
                         
                 elif pigg.type == "n41":
-                    if pigg.life == 50: # Check for full health
+                    if pigg.life == 50:
                         pig_img = pg.transform.scale(n41,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n42,(pigg.radius*2,pigg.radius*2))
                         
                 if pigg.type == "n51":
-                    if pigg.life == 50: # Check for full health
+                    if pigg.life == 50:
                         pig_img = pg.transform.scale(n51,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
@@ -1231,58 +1230,58 @@ def main_loop():
                     pig_to_remove.append(pig)
                 
             # Update bat position before drawing if Sahur's ability is active
-            active_special_bird_instance = None # This will hold Sahur or Glorbo if their ability is active
+            active_special_bird_instance = None # Will hold Sahur/Glorbo if ability active
             current_sahur_ability_polygon = None
 
-            if birds: # Check if there are any active birds
-                last_bird = birds[-1] # The currently flying bird
-                if last_bird.fahigkeit_verwendet: # Check if the last bird has its ability active
+            if birds: # Any active birds?
+                last_bird = birds[-1] # Current bird in flight
+                if last_bird.fahigkeit_verwendet: # Is its ability active?
                     if isinstance(last_bird, ch.Sahur):
                         active_special_bird_instance = last_bird
-                        # Sahur has a specific 'ability_polygon' attribute for its timed bat
+                        # Sahur's bat is stored in ability_polygon
                         if hasattr(last_bird, 'ability_polygon') and last_bird.ability_polygon:
                             current_sahur_ability_polygon = last_bird.ability_polygon
                     elif isinstance(last_bird, ch.Glorbo):
-                        # Glorbo's ability is active (for growth/stop), mark it as special.
+                        # Glorbo's ability is growth/stop
                         active_special_bird_instance = last_bird
 
             for column in columns:
-                # Handle Sahur's bat specifically
+                # Sahur's bat logic
                 if column.element_type == "bats" and \
                    active_special_bird_instance and \
                    isinstance(active_special_bird_instance, ch.Sahur):
-                        # Define animation_duration here so it's available for the lifetime check
-                        animation_duration = 0.25 # Animation now completes in 0.25 seconds
+                        # Animation duration for bat swing & lifetime
+                        animation_duration = 0.25 # Swing/lifetime is 0.25s
 
-                        # Check bat lifetime for Sahur
+                        # Bat lifetime check for Sahur
                         if hasattr(active_special_bird_instance, 'ability_polygon_creation_time') and \
-                           active_special_bird_instance.ability_polygon == column: # Ensure this is Sahur's current bat
+                           active_special_bird_instance.ability_polygon == column: # Is this Sahur's current bat?
                             bat_age = time.time() - active_special_bird_instance.ability_polygon_creation_time
                             if bat_age > animation_duration: 
-                                if column.body and column.shape: # Ensure they exist before removal
-                                    if column.shape in space.shapes: # Check if Pymunk still has it
+                                if column.body and column.shape: # Check body/shape exist before Pymunk removal
+                                    if column.shape in space.shapes: # Is it still in Pymunk space?
                                         space.remove(column.shape, column.body)
-                                column.in_space = False # Mark as removed for our tracking; 'column' is the Polygon object.
-                                if column in columns: # Check if it's still in the list
+                                column.in_space = False # Mark Polygon as removed for our game logic
+                                if column in columns: # Still in 'columns' list?
                                     columns.remove(column)
                                 active_special_bird_instance.ability_polygon = None
-                                current_sahur_ability_polygon = None # Nullify for current frame logic
-                                continue # Skip further processing for this expired bat
+                                current_sahur_ability_polygon = None # Bat gone, nullify ref for this frame
+                                continue # Bat expired, skip rest of its logic
 
-                        # If bat is still active, update its position
-                        if active_special_bird_instance.ability_polygon == column: # Check again in case it was just removed
+                        # If bat still alive, update its position
+                        if active_special_bird_instance.ability_polygon == column: # Double check it wasn't just timed out
                             new_x = active_special_bird_instance.body.position.x + 50
                             new_y = active_special_bird_instance.body.position.y
                             column.body.position = Vec2d(new_x, new_y)
 
-                            # Bat angle swing logic for Sahur's bat
+                            # Sahur's bat swing animation
                             bat_creation_time = active_special_bird_instance.ability_polygon_creation_time
-                            current_time_for_swing = time.time() # Use a consistent time for age calculation
+                            current_time_for_swing = time.time() # Consistent time for age calc
                             bat_age_for_swing = current_time_for_swing - bat_creation_time
                             
-                            # animation_duration is already defined above
-                            start_angle_deg = 160.0 # Changed start angle
-                            end_angle_deg = 20.0   # Changed end angle
+                            # animation_duration defined earlier
+                            start_angle_deg = 160.0 # Bat starts at 160 deg
+                            end_angle_deg = 20.0   # Swings to 20 deg
 
                             if bat_age_for_swing <= animation_duration:
                                 progress = min(bat_age_for_swing / animation_duration, 1.0) # Ensure progress doesn't exceed 1.0
@@ -1290,12 +1289,12 @@ def main_loop():
                                 column.body.angle = math.radians(current_angle_deg)
                             # else: The bat will be at end_angle_deg when it's about to be removed by the timer.
 
-                            if column.shape: # Ensure shape exists before reindexing
+                            if column.shape: # Reindex if shape exists
                                 space.reindex_shape(column.shape)
 
-                if column.in_space: # Only draw if it hasn't been removed (e.g. by timer)
+                if column.in_space: # Only draw if not removed by timer/collision
                     column.draw_poly(screen, column.shape)
-                    
+            # Draw other polygons        
             for beam in beams:
                 beam.draw_poly(screen,beam.shape)
             for circle in circles:
@@ -1304,7 +1303,7 @@ def main_loop():
             for triangle in triangles:
                 triangle.draw_poly(screen,triangle.shape)
 
-            dt = 1.0 / 50.0 / 2.0
+            dt = 1.0 / 50.0 / 2.0 # physics simulation step
             for x in range(2):
                 space.step(dt)
             slingl_x, slingl_y = get_sling_positions()
@@ -1351,20 +1350,20 @@ def main_loop():
                 score += (level.number_of_birds) * 10000
                 bonus_score_once = False
 
-            # Calculate center position for the purple background
+            # Centered purple background rect
             center_x = screen_width // 2
             center_y = screen_height // 2
-            rect_width = min(screen_width * 0.8, 600)  # 80% of screen width or 600px, whichever is smaller
-            rect_height = screen_height  # 80% of screen height or 650px, whichever is smaller
+            rect_width = min(screen_width * 0.8, 600)  # Width: 80% screen or 600px max
+            rect_height = screen_height  # Height: full screen or a fixed value like 650px
             
             rect = pg.Rect(
-                center_x - rect_width // 2,  # Center horizontally
-                center_y - rect_height // 2,  # Center vertically
+                center_x - rect_width // 2,  # Center X
+                center_y - rect_height // 2,  # Center Y
                 rect_width,
                 rect_height
             )
             pg.draw.rect(screen, (BLACK), rect)
-            screen.blit(level_cleared, scale_pos(450, 90))
+            screen.blit(level_cleared, scale_pos(450, 90)) # "Level Cleared!" text
 
             if score >= level.one_star:
                 screen.blit(star1, scale_pos(370, 190))
@@ -1373,7 +1372,7 @@ def main_loop():
             if score >= level.three_star:
                 screen.blit(star1, scale_pos(660, 190)) # Changed star3 to star1
 
-            screen.blit(score_level_cleared, scale_pos(555, 400))
+            screen.blit(score_level_cleared, scale_pos(555, 400)) # Display score
             screen.blit(replay_button, scale_pos(555, 480))
             screen.blit(next_button, scale_pos(665, 480))
             screen.blit(menu_button, scale_pos(445, 480))
@@ -1382,13 +1381,13 @@ def main_loop():
             level_failed = bold_font3.render("Level failed!", 1, WHITE)
             score_level_failed = bold_font2.render(str(score), 1, WHITE)
 
-            # Calculate center position for the purple background
+            # Centered background for fail screen
             center_x = screen_width // 2
             center_y = screen_height // 2
-            rect_width = min(screen_width * 0.8, 600)  # 80% of screen width or 600px, whichever is smaller
-            rect_height = screen_height  # 80% of screen height or 650px, whichever is smaller
+            rect_width = min(screen_width * 0.8, 600)
+            rect_height = screen_height
             
-            rect = pg.Rect(
+            rect = pg.Rect( # Define the rectangle
                 center_x - rect_width // 2,  # Center horizontally
                 center_y - rect_height // 2,  # Center vertically
                 rect_width,
@@ -1396,7 +1395,7 @@ def main_loop():
             )
             pg.draw.rect(screen, (BLACK), rect)
             screen.blit(level_failed, scale_pos(450, 90))
-
+            # Display stars earned, even on fail
             if score >= level.one_star:
                 screen.blit(star1, scale_pos(370, 190))
             if score >= level.two_star:
@@ -1404,7 +1403,7 @@ def main_loop():
             if score >= level.three_star:
                 screen.blit(star1, scale_pos(660, 190)) # Changed star3 to star1
 
-            screen.blit(score_level_failed, scale_pos(555, 400))
+            screen.blit(score_level_failed, scale_pos(555, 400)) # Show score
             screen.blit(replay_button, scale_pos(555, 480))
             screen.blit(menu_button, scale_pos(445, 480))
 
@@ -1416,14 +1415,14 @@ def main_loop():
                 num_levels = 21
                 screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), scale_pos(0, 0))
                     
-                # Calculate base positions and spacing
+                # Base pos & spacing for level icons
                 base_x = 100
                 base_y = 50
                 base_spacing_x = 151
                 base_spacing_y = 160
                 levels_per_row = 7
                 
-                # Scale the icon size
+                # Scale icons to screen size
                 icon_width = int(100 * scale_x)
                 icon_height = int(100 * scale_y)
                 level_icon_scaled = pg.transform.scale(level_icon, (icon_width, icon_height))
@@ -1434,36 +1433,36 @@ def main_loop():
                     level_number = i + 1
                     level_method_name = f"build_{level_number}"
                     
-                    # Calculate position with proper scaling
+                    # Scaled position for each icon
                     row = i // levels_per_row
                     col = i % levels_per_row
                     x = base_x + (col * base_spacing_x)
                     y = base_y + (row * base_spacing_y)
                     x, y = scale_pos(x, y)
 
-                    # Choose appropriate icon
+                    # Locked or unlocked icon
                     if getattr(level, level_method_name, None):
                         with open("cleared_levels.txt","r+") as f:
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
-                                icon = level_icon_scaled
+                                icon = level_icon_scaled # Unlocked
                             else:
-                                icon = locked_icon_scaled
+                                icon = locked_icon_scaled # Locked
                     else:
                         icon = locked_icon_scaled
 
-                    # Scale the level number text
+                    # Scale level number text
                     level_text = str(level_number)
                     level_font = bold_font3.render(level_text, 1, WHITE)
                     text_rect = level_font.get_rect(center=level_icon_rect.center)
                     
-                    # Draw the icon and text
+                    # Draw icon & its number
                     screen.blit(icon, (x, y))
                     if getattr(level, level_method_name, None):
                         with open("cleared_levels.txt","r+") as f:
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
                                 screen.blit(level_font, (x + text_rect.x, y + text_rect.y))
 
-                # Scale and position the menu button
+                # Menu button scaling/pos (currently commented out from blitting)
                 menu_button_scaled = pg.transform.scale(menu_button, 
                     (int(menu_button.get_width() * scale_x), 
                     int(menu_button.get_height() * scale_y)))
@@ -1477,7 +1476,7 @@ def main_loop():
             
             
         # start menu
-        elif game_state == 7:
+        elif game_state == 7: # Main Menu
             #print(pigs)
             
             level_loader = getattr(level, "build_0", None)
@@ -1486,6 +1485,7 @@ def main_loop():
                 loaded=True
                 
             try:
+                # Random bird image for menu background?
                 bird_img = pg.transform.scale(pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[random.randint(0,level.number_of_birds)]}.png")).convert_alpha(),(30,30)),scale_size(30,30))
             except IndexError as e:
                 pass
@@ -1493,7 +1493,7 @@ def main_loop():
             screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), scale_pos(0, 0))
                 
             
-
+            # Click play button
             x_mouse, y_mouse = pg.mouse.get_pos()
             if pg.mouse.get_pressed()[0] and (478 * scale_x < x_mouse < 711 * scale_x and 247 * scale_y < y_mouse < 400 * scale_y):
                 game_state = 6
@@ -1503,7 +1503,7 @@ def main_loop():
             
                 
             
-            # Track bird path
+            # Background birds animation for menu
             for bird in birds:
                 bird_to_remove = []
                 
@@ -1529,7 +1529,7 @@ def main_loop():
                     #print(f"bird removed: {bird.body.position}")
                     bird_to_remove.append(bird)
                     
-                bird_path.append((img_x, img_y))  # Store original coordinates
+                bird_path.append((img_x, img_y))  # Store original coordinates for trail
                 
                 
 
@@ -1543,7 +1543,7 @@ def main_loop():
                 space.remove(pig.body)
                 pigs.remove(pig)
 
-            for line in floor.static_lines:
+            for line in floor.static_lines: # Draw floor (transparent, so for debug?)
                 body = floor.static_body
                 pv1 = body.position + line.a.rotated(body.angle)
                 pv2 = body.position + line.b.rotated(body.angle)
@@ -1551,7 +1551,7 @@ def main_loop():
                 p2 = to_pygame(pv2)
                 pg.draw.lines(screen, TRANSP, False, [p1, p2])
 
-            for pig in pigs:
+            for pig in pigs: # Draw pigs for menu background
                 pig_to_remove = []
                 pigg=pig
                 pig = pig.shape
@@ -1560,31 +1560,31 @@ def main_loop():
                 angle_degree = math.degrees(pig.body.angle)
                 
                 if pigg.type == "n11":
-                    if pigg.life == 30:
+                    if pigg.life == 30: # Using 30 as full health for menu?
                         pig_img = pg.transform.scale(n11,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n12,(pigg.radius*2,pigg.radius*2))
                 
                 elif pigg.type == "n21":
-                    if pigg.life == 30:
+                    if pigg.life == 30: 
                         pig_img = pg.transform.scale(n21,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n22,(pigg.radius*2,pigg.radius*2))
                         
                 elif pigg.type == "n31":
-                    if pigg.life == 30:
+                    if pigg.life == 30: 
                         pig_img = pg.transform.scale(n31,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n32,(pigg.radius*2,pigg.radius*2))
                         
                 elif pigg.type == "n41":
-                    if pigg.life == 30:
+                    if pigg.life == 30: 
                         pig_img = pg.transform.scale(n41,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n42,(pigg.radius*2,pigg.radius*2))
                         
                 if pigg.type == "n51":
-                    if pigg.life == 30:
+                    if pigg.life == 30: 
                         pig_img = pg.transform.scale(n51,(pigg.radius*2,pigg.radius*2))
                     else:
                         pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
@@ -1601,14 +1601,14 @@ def main_loop():
                 if (pig.body.position.y < 0 or pig.body.position.x < -50 or
                         pig.body.position.x > screen_width + 50):
                     #print(f"Pig removed: {pig.body.position}")
-                    pig_to_remove.append(pig)
+                    pig_to_remove.append(pig) # Remove if off-screen
                 if len(pigs) > 50:
-                    pigs.remove(pigs[0])
+                    pigs.remove(pigs[0]) # Limit number of pigs in menu
                 #print(len(pigs))
                 
-            dt = 1.0 / 50.0 / 2.0
+            dt = 1.0 / 50.0 / 2.0 # Physics step for menu animations
             for x in range(2):
-                #print("space.step called")
+                # print("space.step called for menu")
                 space.step(dt)
     
             screen.blit(play_button,(screen_width/2-play_button.get_width()/2,screen_height/2-play_button.get_height()/2))

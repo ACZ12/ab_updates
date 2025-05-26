@@ -1,8 +1,6 @@
-# character.py
-
 import pymunk as pm
 from pymunk import Vec2d
-import math # Already present, but good to note for cos/sin
+import math
 import time
 import pygame as pg
 from Polygon import Polygon
@@ -10,8 +8,7 @@ from Polygon import Polygon
 class Bird():
     
     def __init__(self,distance,angle,x,y,space,screen_height, screen_width, level):
-        
-        pg.display.init()
+        # pg.display.init() # Pygame display should be initialized once in the main game file
         self.life = 20
         mass = 5
         radius = 15
@@ -56,7 +53,7 @@ class Sahur(Bird):
         # If Sahur already has an ability polygon, remove it first
         if hasattr(self, 'ability_polygon') and self.ability_polygon and self.ability_polygon in self.level.columns:
             if self.ability_polygon.body and self.ability_polygon.shape: # Ensure they exist
-                self.level.space.remove(self.ability_polygon.shape, self.ability_polygon.body)
+                self.level.space.remove(self.ability_polygon.shape, self.ability_polygon.body) # Remove from Pymunk space
             self.level.columns.remove(self.ability_polygon)
         self.ability_polygon = None # Clear previous reference
         
@@ -64,14 +61,13 @@ class Sahur(Bird):
         initial_pos_x = self.body.position.x + 70
         initial_pos_y = self.body.position.y
         bat_initial_pos = Vec2d(initial_pos_x, initial_pos_y)
-
-        # Pass the bat image path directly
+        
         new_bat_polygon = Polygon(
             pos=bat_initial_pos, # Use the offset position
             length=20, height=130, # Longer and skinnier bat dimensions
             space=self.level.space,
             life=1000, # Bat life
-            element_type="bats",
+            element_type="bats", # Special type for Sahur's bat
             screen_height=self.screen_height, screen_width=self.screen_width,
             # bird_pos is not used by Polygon for "bats", so removed for clarity
             image_path=Sahur.bat_img)
@@ -131,7 +127,7 @@ class Glorbo(Bird):
         # Attributes for gradual growth
         self.initial_mass = self.body.mass # Capture initial mass from Bird's constructor
         self.is_growing = False
-        self.ability_activation_time = 0.0
+        self.ability_activation_time = 0.0 # Timestamp of ability activation
         self.growth_duration = 0.1  # seconds for full growth (FASTER)
 
         self.initial_visual_scale = 1.0
@@ -139,7 +135,7 @@ class Glorbo(Bird):
         self.current_visual_scale_multiplier = 1.0 # Current visual size multiplier
 
         self.initial_physical_radius = 0.0 # To be set from self.shape.radius on activation
-        # target_physical_radius will be calculated based on initial_physical_radius and multiplier
+        # Target physical radius is calculated dynamically during growth
     img = "./resources/images/glorbo.png"
     scale = (50,50)
     ability_visual_scale_multiplier = 5 # Target multiplier for visual and physical size change
@@ -155,10 +151,8 @@ class Glorbo(Bird):
             self.is_ability_visually_active = True # Mark that the ability's visual aspect is now active
             self.ability_activation_time = time.time()
             
-            self.initial_physical_radius = self.shape.radius # Capture current Pymunk shape radius
-            # Target physical radius will be calculated in the game loop using ability_visual_scale_multiplier
-
-            self.current_visual_scale_multiplier = self.initial_visual_scale # Start at normal visual scale
+            self.initial_physical_radius = self.shape.radius # Capture current Pymunk shape radius at activation
+            self.current_visual_scale_multiplier = self.initial_visual_scale # Reset visual scale at activation
 
         self.fahigkeit_verwendet = True
     
@@ -206,9 +200,7 @@ class Pig():
         self.shape = pm.Circle(self.body, self.radius)
         self.shape.elasticity = 0.6
         self.shape.friction = 1
-        self.shape.collision_type = 1
-        space.add(self.body, self.shape) # Korrigierte Zeile
-        self.body = self.body
-        self.shape = self.shape
+        self.shape.collision_type = 1 # Collision type for pigs
+        space.add(self.body, self.shape) # Add pig to the physics space
         
         
