@@ -16,12 +16,12 @@ class Bird():
         body = pm.Body(mass,inertia)
         
         body.position = x,y
-        power = distance*53
+        power = distance*45 # Reduced power for a "slower" initial launch feel
         impulse = power*Vec2d(1,0)
         angle = -angle
         body.apply_impulse_at_local_point(impulse.rotated(angle))
         shape = pm.Circle(body,radius ,(0,0))
-        shape.elasticity = 0.2
+        shape.elasticity = 0.2 # Slightly increased elasticity
         shape.friction = 5
         shape.collision_type = 0
         space.add(body,shape)
@@ -180,10 +180,59 @@ class Bomb(Bird):
         self.bird_hit_ground = False
     img = "./resources/images/bomb.png"
     scale = (50,50)
+    bomb_img = "./resources/images/bomb_projectile.png"
     
     def fahigkeit(self):
         print("fahigkeit verwendet!")
         self.fahigkeit_verwendet = True
+
+        # Define projectile properties
+        projectile_radius = 10  # Radius for the bomb projectile
+        projectile_visual_size = projectile_radius * 4 # Visual size for Polygon class
+        projectile_mass = 2 # Mass for the projectile
+
+        # Determine starting position for the projectile
+        # Spawn slightly below the Bomb character to avoid immediate self-collision
+        # and to make it look like it's being dropped.
+        # self.radius is the Bomb bird's physics radius (15)
+        vertical_offset_from_bird_center = self.radius + projectile_radius + 5 # e.g., 15 + 10 + 5 = 30
+        
+        start_pos_x = self.body.position.x
+        calculated_start_pos_y = self.body.position.y - vertical_offset_from_bird_center
+        
+        # Ensure projectile doesn't spawn below the ground (ground is at y=130)
+        ground_y_level = 130 
+        min_spawn_y_center = ground_y_level + projectile_radius
+        final_start_pos_y = max(calculated_start_pos_y, min_spawn_y_center)
+
+        projectile_start_pos = Vec2d(start_pos_x, final_start_pos_y)
+
+        new_bomb_polygon = Polygon(
+            pos=projectile_start_pos,
+            length=projectile_visual_size, 
+            height=projectile_visual_size/2, 
+            space=self.level.space,
+            life=1000, # Projectile life (can be adjusted for balance)
+            element_type="bombs", # The projectile is a circle
+            screen_height=self.screen_height, screen_width=self.screen_width,
+            image_path=Bomb.bomb_img, # Path to the projectile's image
+            radius=projectile_radius, # Physics radius of the projectile
+            mass=projectile_mass # Mass of the projectile
+        )
+
+        # Set projectile's initial velocity to match the Bomb character's velocity,
+        # plus a small additional downward push to ensure separation.
+        # Dampen the inherited velocity to make the projectile slower overall.
+        velocity_inheritance_factor = 0.5
+        character_velocity_x = self.body.velocity.x * velocity_inheritance_factor
+        character_velocity_y = self.body.velocity.y * velocity_inheritance_factor
+        additional_downward_velocity = -100 # Reduced from -500 for a gentler drop
+
+        new_bomb_polygon.body.velocity = Vec2d(character_velocity_x, character_velocity_y + additional_downward_velocity)
+        
+        self.ability_polygon = new_bomb_polygon
+        self.level.columns.append(new_bomb_polygon)
+        
         
         
         
@@ -191,15 +240,19 @@ class Pig():
 
     def __init__(self,x,y,space,radius,type):
         self.type = type
-        self.life = 50
+        if self.type in ["n11","n21","n31","n41","n51"]:
+            self.life = 75 # Increased pig health
+        elif self.type in ["m11","m21","m31","m41","m51"]:
+            self.life = 150 # Increased pig health
+            
         self.mass = 5
         self.radius = radius
         inertia = pm.moment_for_circle(self.mass,0,self.radius,(0,0))
         self.body = pm.Body(self.mass,inertia)
         self.body.position = x, y
         self.shape = pm.Circle(self.body, self.radius)
-        self.shape.elasticity = 0.6
-        self.shape.friction = 1
+        self.shape.elasticity = 0.2
+        self.shape.friction = 4
         self.shape.collision_type = 1 # Collision type for pigs
         space.add(self.body, self.shape) # Add pig to the physics space
         

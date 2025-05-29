@@ -160,8 +160,8 @@ def main_loop():
     
     pg.init()
     screen_width, screen_height = 1200, 650
-    screen = pg.display.set_mode((1200, 650), pg.RESIZABLE)
-    
+    # Set to fullscreen mode. (0,0) tells Pygame to use the current desktop resolution.
+    screen = pg.display.set_mode((0, 0), pg.FULLSCREEN)
     screen_width, screen_height = pg.display.get_surface().get_size()
     base_width, base_height = 1200, 650
     scale_x = screen_width / base_width
@@ -175,7 +175,7 @@ def main_loop():
     def scale_size(width, height):
         return width * scale_x, height * scale_y
     
-    sling_anchor = scale_pos(130, 380)
+    #sling_anchor = scale_pos(130, 380)
     
     # Base positions for sling
     base_slingl_x, base_slingl_y = 120, 370
@@ -212,8 +212,8 @@ def main_loop():
     buttons2 = pg.image.load(load_resource("./resources/images/buttons2.png")).convert_alpha()
     menu_son = pg.image.load(load_resource("./resources/images/menu_son.png")).convert_alpha()
     menu_sof = pg.image.load(load_resource("./resources/images/menu_sof.png")).convert_alpha()
-    menu_son = pg.transform.scale(menu_son, (250, screen_height))
-    menu_sof = pg.transform.scale(menu_sof, (250, screen_height))
+    menu_son = pg.transform.scale(menu_son, (250*scale_x, screen_height))
+    menu_sof = pg.transform.scale(menu_sof, (250*scale_x, screen_height))
 
     rect = pg.Rect(32, 19, 122 - 32, 116 - 19)
     replay_button = buttons.subsurface(rect).copy()
@@ -247,6 +247,8 @@ def main_loop():
 
     rect = pg.Rect(291, 11, 547 - 291, 181 - 11)
     play_button = buttons.subsurface(rect).copy()
+    
+    back_arrow = 
 
     wood1 = pg.image.load(load_resource("./resources/images/wood.png")).convert_alpha()
     star1 = pg.image.load(load_resource("./resources/images/stars/gold_star.png")).convert_alpha()
@@ -282,7 +284,7 @@ def main_loop():
     star2_scaled_width = int(star2.get_width() * star2_scale_factor)
     star2_scaled_height = int(star2.get_height() * star2_scale_factor)
 
-    star1 = pg.transform.scale(star1, (star13_scaled_width, star13_scaled_height))
+    #star1 = pg.transform.scale(star1, (star13_scaled_width, star13_scaled_height))
     star3 = pg.transform.scale(star3, (star13_scaled_width, star13_scaled_height))
     star2 = pg.transform.scale(star2, (star2_scaled_width, star2_scaled_height))
 
@@ -327,7 +329,7 @@ def main_loop():
     # base physics
 
     space = pm.Space()
-    space.gravity = (0.0, -700.0)
+    space.gravity = (0.0, -600.0) # Reduced gravity for longer travel distance
 
     
     # STATIC FLOOR
@@ -494,13 +496,16 @@ def main_loop():
         bird_body = a.body
         pig_body = b.body
         bird_momentum = bird_body.mass * bird_body.velocity.length # for damage calc
-        base_damage = 0
-        momentum_damage_factor = 0.99 # Further increased from 0.66
-        damage = base_damage + (bird_momentum * momentum_damage_factor)
+        
+        # Adjusted damage calculation for bird hitting pig
+        damage = 0
+        if arbiter.total_impulse.length > 500: # Higher impulse threshold for significant damage
+            momentum_damage_factor = 0.06 # Reduced factor for more balanced damage
+            damage = bird_momentum * momentum_damage_factor
 
         pig_to_remove = []
         for pig in pigs:
-            if pig.body == pig_body and bird_momentum > 25:
+            if pig.body == pig_body and damage > 0: # Apply damage if calculated
                 pig.life -= damage # deal damage
                 if pig.life <= 0:
                     pig_to_remove.append(pig)
@@ -522,14 +527,16 @@ def main_loop():
         wood_body = b.body  # Get the wood's body.  Need this.
         bird_momentum = bird_body.mass * bird_body.velocity.length # Bird's momentum
 
-        base_damage = 0
-        momentum_damage_factor = 0.13
-        damage = base_damage + (bird_momentum * momentum_damage_factor)
-
-        if arbiter.total_impulse.length > 2000:
+        damage = 0
+        # Use existing impulse threshold, adjust damage factor
+        if arbiter.total_impulse.length > 0: # Existing threshold for bird hitting wood
+            momentum_damage_factor = 0.1 # Reduced factor for more balanced damage
+            damage = bird_momentum * momentum_damage_factor
+            
             for element in columns + circles + beams + triangles:
                 if element.shape.body == wood_body:  # Change to check the body
                     element.life -= damage
+                    print(f"DEBUG: Bird hit {element.material_type} {element.element_type}. Damage: {damage:.2f}. Remaining Life: {element.life:.2f}")
                     if element.life <= 0:
                         element_to_remove.append(element)
                         global score
@@ -546,12 +553,15 @@ def main_loop():
                 triangles.remove(element)
 
     def post_solve_pig_wood(arbiter, space, _):
+        polys_in_explosion_to_remove_locally = []
         pig_to_remove = []
         pig_shape, wood_poly_shape = arbiter.shapes # wood_poly_shape is the type 2 object (polygon/bat)
-
+    
         is_sahurs_bat_collision = False
-        # Check if the wood_poly_shape is Sahur's active bat
-        if birds: # Ensure there's at least one bird (the active one)
+        is_bombs_bomb_collision = False
+        source_ability_polygon_object = None # This will be the Polygon instance of the bat or bomb
+    
+        if birds: # Ensure there's an active bird
             active_bird = birds[-1] # The bird currently in play
             if isinstance(active_bird, ch.Sahur) and \
                active_bird.fahigkeit_verwendet and \
@@ -559,32 +569,152 @@ def main_loop():
                active_bird.ability_polygon is not None and \
                active_bird.ability_polygon.shape == wood_poly_shape:
                 is_sahurs_bat_collision = True
+                source_ability_polygon_object = active_bird.ability_polygon
+            elif isinstance(active_bird, ch.Bomb) and \
+               active_bird.fahigkeit_verwendet and \
+               hasattr(active_bird, 'ability_polygon') and \
+               active_bird.ability_polygon is not None and \
+               active_bird.ability_polygon.shape == wood_poly_shape:
+                is_bombs_bomb_collision = True
+                source_ability_polygon_object = active_bird.ability_polygon
         
-        damage_amount = 0
-        should_damage_pig = False
-
+        # --- Handle Sahur's Bat Collision ---
         if is_sahurs_bat_collision: # Sahur's bat is special
-            # Sahur's bat hitting a pig: use a very low impulse threshold
-            if arbiter.total_impulse.length > 10.0: # Minimal impulse to confirm "real" collision
-                damage_amount = 1000 # Further increased from 750 for Sahur's bat
-                should_damage_pig = True
-        else: # Regular wood/poly collision
-            # Regular wood/poly hitting a pig: use the standard higher impulse threshold
-            if arbiter.total_impulse.length > ABILITY_COLLISION_IMPULSE_THRESHOLD: # e.g., 2000.0
-                damage_amount = 60 # Further increased from 40 for regular polygon damage
-                should_damage_pig = True
+            if arbiter.total_impulse.length > 0: # Minimal impulse to confirm "real" collision
+                sahur_bat_damage = 1000 
+                for pig in pigs:
+                    if pig.shape == pig_shape:
+                        pig.life -= sahur_bat_damage
+                        if pig.life <= 0 and pig not in pig_to_remove:
+                            pig_to_remove.append(pig)
+                            global score
+                            score += 10000
+                        break
+        # --- Handle Bomb's Projectile Collision (Explosion) ---
+        elif is_bombs_bomb_collision:
+            # Ensure the bomb projectile exists and is still in space before exploding
+            if arbiter.total_impulse.length > 10.0 and \
+               source_ability_polygon_object and source_ability_polygon_object.in_space:
+                
+                explosion_center = source_ability_polygon_object.body.position
+                explosion_radius = 150  # World units for explosion AoE
+                explosion_base_damage_pigs = 175 # Base damage for pigs in AoE
+                explosion_base_damage_polys = 120 # Base damage for polygons in AoE
+
+                # 1. Damage the directly hit pig (it takes more damage)
+                for pig in pigs:
+                    if pig.shape == pig_shape:
+                        pig.life -= explosion_base_damage_pigs * 1.5 # Direct hit bonus
+                        if pig.life <= 0 and pig not in pig_to_remove:
+                            pig_to_remove.append(pig)
+                            score += 10000 
+                        break # Found and processed the directly hit pig
+
+                # 2. Damage other pigs in the explosion radius
+                for other_pig in pigs:
+                    if other_pig.shape == pig_shape: continue # Skip the directly hit one
+                    
+                    dist_vec = other_pig.body.position - explosion_center
+                    distance = dist_vec.length
+                    if distance < explosion_radius:
+                        # Damage falloff: closer pigs take more damage
+                        damage_falloff_factor = max(0, (explosion_radius - distance) / explosion_radius)
+                        actual_damage = explosion_base_damage_pigs * damage_falloff_factor
+                        
+                        other_pig.life -= actual_damage
+                        if other_pig.life <= 0 and other_pig not in pig_to_remove:
+                            pig_to_remove.append(other_pig)
+                            score += 10000
+
+                # 3. Damage polygons (blocks) in the explosion radius
+                polys_in_explosion_to_remove_locally = [] # Temp list for this specific explosion
+                all_destructible_polys = columns + beams + circles + triangles
+                for poly_item in all_destructible_polys:
+                    if poly_item == source_ability_polygon_object: continue # Don't let bomb damage itself
+                    if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue 
+
+                    dist_vec = poly_item.body.position - explosion_center
+                    distance = dist_vec.length
+                    if distance < explosion_radius:
+                        damage_falloff_factor = max(0, (explosion_radius - distance) / explosion_radius)
+                        actual_damage = explosion_base_damage_polys * damage_falloff_factor
+                        
+                        poly_item.life -= actual_damage
+                        print(f"DEBUG: Bomb explosion hit {poly_item.material_type} {poly_item.element_type}. Damage: {actual_damage:.2f}. Remaining Life: {poly_item.life:.2f}")
+                        if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                            polys_in_explosion_to_remove_locally.append(poly_item)
+                            score += POLY_DESTROY_SCORE 
+                
+                # Remove polygons destroyed by this explosion
+                for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                    if poly_to_destroy.in_space: # Check again before removal
+                        space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                        poly_to_destroy.in_space = False
+                        if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                        elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                        elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                        elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+                
+                # 4. Remove the bomb projectile itself after explosion
+                if source_ability_polygon_object.in_space: # Check it wasn't already removed
+                    space.remove(source_ability_polygon_object.shape, source_ability_polygon_object.body)
+                    source_ability_polygon_object.in_space = False
+                    if source_ability_polygon_object in columns: # Bomb projectiles are added to columns
+                        columns.remove(source_ability_polygon_object)
+                    # Nullify the bird's reference to this ability polygon
+                    if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == source_ability_polygon_object:
+                        active_bird.ability_polygon = None
+        # --- Handle Generic Polygon (non-ability) Collision with Pig ---
+        else: # Neither Sahur's bat nor Bomb's projectile - a regular polygon hit a pig
+            colliding_poly_object = None
+            all_destructible_polys = columns + beams + circles + triangles
+            for poly_item in all_destructible_polys:
+                if poly_item.shape == wood_poly_shape:
+                    colliding_poly_object = poly_item
+                    break
+            
+            if arbiter.total_impulse.length > 1000: # Impulse threshold for pig damaging polygon and vice-versa
+                generic_poly_damage = 80 
+                # Damage the pig
+                for pig in pigs:
+                    if pig.shape == pig_shape:
+                        pig.life -= generic_poly_damage
+                        if pig.life <= 0 and pig not in pig_to_remove:
+                            pig_to_remove.append(pig)
+                            score += 10000
+                        break 
+
+                # Damage the polygon if it's a dynamic, non-bat polygon
+                if colliding_poly_object and \
+                   colliding_poly_object.body.body_type == pm.Body.DYNAMIC and \
+                   colliding_poly_object.element_type != "bats":
+                    
+                    # Damage to polygon based on collision impulse
+                    poly_damage_from_pig_factor = 0.03 # Adjust this factor as needed
+                    damage_to_poly = arbiter.total_impulse.length * poly_damage_from_pig_factor
+                    colliding_poly_object.life -= damage_to_poly
+                    print(f"DEBUG: Pig hit {colliding_poly_object.material_type} {colliding_poly_object.element_type}. Damage: {damage_to_poly:.2f}. Remaining Life: {colliding_poly_object.life:.2f}")
+                    if colliding_poly_object.life <= 0 and colliding_poly_object.in_space:
+                        # Add to a temporary list for removal to avoid modifying lists while iterating
+                        # This part will be handled by the general polygon removal logic if not already covered
+                        if colliding_poly_object not in polys_in_explosion_to_remove_locally: # Re-use temp list name, or create new
+                             # We need a robust way to remove this polygon.
+                             # For now, let's assume post_solve_poly_vs_poly might catch it,
+                             # or we add specific removal here.
+                            if colliding_poly_object.in_space:
+                                space.remove(colliding_poly_object.shape, colliding_poly_object.body)
+                                colliding_poly_object.in_space = False
+                                if colliding_poly_object in columns: columns.remove(colliding_poly_object)
+                                elif colliding_poly_object in beams: beams.remove(colliding_poly_object)
+                                elif colliding_poly_object in circles: circles.remove(colliding_poly_object)
+                                elif colliding_poly_object in triangles: triangles.remove(colliding_poly_object)
+                                score += POLY_DESTROY_SCORE
         
-        if should_damage_pig and damage_amount > 0:
-            for pig in pigs:
-                if pig.shape == pig_shape:
-                    pig.life -= damage_amount # Deal damage to pig
-                    if pig.life <= 0:
-                        pig_to_remove.append(pig)
-                        global score
-                        score += 10000
-        for pig in pig_to_remove:
-            space.remove(pig.shape, pig.body)
-            pigs.remove(pig)
+        # Common removal for pigs damaged in any of the above scenarios
+        for pig_obj in pig_to_remove: # pig_to_remove now contains Pig objects
+            if pig_obj in pigs: # Check if it's still in the main list
+                space.remove(pig_obj.shape, pig_obj.body)
+                pigs.remove(pig_obj)
 
     def post_solve_bird_ground(arbiter, space, _):
         global birds # Access the list of active bird instances
@@ -596,7 +726,13 @@ def main_loop():
         
         if bird_shape.collision_type == 0 and ground_shape.collision_type == 3:
             colliding_bird_instance = None
-            for b_instance in birds:
+            for pig in pigs:
+                if pig.shape == bird_shape: # This was a bug, should be b_instance.shape
+                    colliding_bird_instance = pig # This was a bug, should be b_instance
+                    break
+            
+            # Corrected loop to find the bird instance
+            for b_instance in birds: # Iterate through the actual bird instances
                 if b_instance.shape == bird_shape:
                     colliding_bird_instance = b_instance
                     break
@@ -612,6 +748,82 @@ def main_loop():
                         colliding_bird_instance.bird_hit_ground = True
                         break # Found the ground, stop checking
                 
+    def post_solve_pig_ground(arbiter, space, _):
+        global pigs, score # Access global pigs list and score
+
+        pig_shape, ground_shape = arbiter.shapes
+        # Ensure pig_shape is actually the pig (collision type 1)
+        if pig_shape.collision_type != 1:
+            pig_shape, ground_shape = ground_shape, pig_shape
+
+        # Proceed if we correctly identified a pig and ground collision
+        if pig_shape.collision_type == 1 and ground_shape.collision_type == 3:
+            colliding_pig_instance = None
+            for p_instance in pigs:
+                if p_instance.shape == pig_shape:
+                    colliding_pig_instance = p_instance
+                    break
+            
+            if colliding_pig_instance:
+                # Damage pig based on impact impulse
+                impulse_threshold_for_damage = 500 # Min impulse to cause damage
+                damage_factor_pig_ground = 0.2  # Adjust this to control damage amount
+
+                if arbiter.total_impulse.length > impulse_threshold_for_damage:
+                    damage_to_pig = arbiter.total_impulse.length * damage_factor_pig_ground
+                    colliding_pig_instance.life -= damage_to_pig
+                    print(f"DEBUG: Pig hit ground. Impulse: {arbiter.total_impulse.length:.2f}, Damage: {damage_to_pig:.2f}, Remaining Life: {colliding_pig_instance.life:.2f}")
+
+                    if colliding_pig_instance.life <= 0:
+                        if colliding_pig_instance in pigs: # Check if not already removed
+                            space.remove(colliding_pig_instance.shape, colliding_pig_instance.body)
+                            pigs.remove(colliding_pig_instance)
+                            score += 10000 # Or a specific score for ground impact KO
+
+    def post_solve_pig_pig(arbiter, space, _):
+        global pigs, score
+
+        shape_a, shape_b = arbiter.shapes
+
+        pig_a_instance = None
+        pig_b_instance = None
+
+        for p_instance in pigs:
+            if p_instance.shape == shape_a:
+                pig_a_instance = p_instance
+            elif p_instance.shape == shape_b:
+                pig_b_instance = p_instance
+            if pig_a_instance and pig_b_instance: # Found both pigs
+                break
+        
+        if pig_a_instance and pig_b_instance:
+            # Damage pigs based on impact impulse
+            impulse_threshold_for_damage = 300  # Min impulse for pig-pig damage
+            damage_factor_pig_pig = 0.015       # Adjust this to control damage amount
+
+            if arbiter.total_impulse.length > impulse_threshold_for_damage:
+                damage_to_pigs = arbiter.total_impulse.length * damage_factor_pig_pig
+                
+                pigs_to_remove_from_this_collision = []
+
+                # Damage pig A
+                pig_a_instance.life -= damage_to_pigs
+                print(f"DEBUG: Pig hit Pig. Impulse: {arbiter.total_impulse.length:.2f}, Damage: {damage_to_pigs:.2f}. Pig A Life: {pig_a_instance.life:.2f}")
+                if pig_a_instance.life <= 0 and pig_a_instance not in pigs_to_remove_from_this_collision:
+                    pigs_to_remove_from_this_collision.append(pig_a_instance)
+
+                # Damage pig B
+                pig_b_instance.life -= damage_to_pigs
+                print(f"DEBUG: Pig hit Pig. Impulse: {arbiter.total_impulse.length:.2f}, Damage: {damage_to_pigs:.2f}. Pig B Life: {pig_b_instance.life:.2f}")
+                if pig_b_instance.life <= 0 and pig_b_instance not in pigs_to_remove_from_this_collision:
+                    pigs_to_remove_from_this_collision.append(pig_b_instance)
+
+                for pig_to_remove in pigs_to_remove_from_this_collision:
+                    if pig_to_remove in pigs: # Check if not already removed
+                        space.remove(pig_to_remove.shape, pig_to_remove.body)
+                        pigs.remove(pig_to_remove)
+                        score += 10000 # Standard score for pig KO
+
     def post_solve_poly_vs_poly(arbiter, space, data):
         global columns, beams, circles, triangles, score, birds # Ensure all necessary globals are accessible
 
@@ -697,6 +909,7 @@ def main_loop():
         # Damage poly_a_obj if it's dynamic, not "bats", and impulse is high enough
         if poly_a_obj.body.body_type == pm.Body.DYNAMIC and poly_a_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
             poly_a_obj.life -= POLY_POLY_DAMAGE_VALUE
+            print(f"DEBUG: Poly-Poly hit {poly_a_obj.material_type} {poly_a_obj.element_type} (A). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_a_obj.life:.2f}")
             if poly_a_obj.life <= 0 and poly_a_obj.in_space and poly_a_obj not in elements_to_remove_from_general_collision:
                 elements_to_remove_from_general_collision.append(poly_a_obj)
                 score += POLY_DESTROY_SCORE
@@ -704,6 +917,7 @@ def main_loop():
         # Damage poly_b_obj if it's dynamic, not "bats", and impulse is high enough
         if poly_b_obj.body.body_type == pm.Body.DYNAMIC and poly_b_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
             poly_b_obj.life -= POLY_POLY_DAMAGE_VALUE
+            print(f"DEBUG: Poly-Poly hit {poly_b_obj.material_type} {poly_b_obj.element_type} (B). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_b_obj.life:.2f}")
             if poly_b_obj.life <= 0 and poly_b_obj.in_space and poly_b_obj not in elements_to_remove_from_general_collision:
                 elements_to_remove_from_general_collision.append(poly_b_obj)
                 score += POLY_DESTROY_SCORE
@@ -720,9 +934,10 @@ def main_loop():
     space.add_collision_handler(0, 1).post_solve = post_solve_bird_pig
     space.add_collision_handler(0, 2).post_solve = post_solve_bird_wood 
     space.add_collision_handler(1, 2).post_solve = post_solve_pig_wood
-    space.add_collision_handler(0, 3).post_solve = post_solve_bird_ground 
+    space.add_collision_handler(0, 3).post_solve = post_solve_bird_ground
     space.add_collision_handler(2, 2).post_solve = post_solve_poly_vs_poly # Polygon vs Polygon
-    
+    space.add_collision_handler(1, 1).post_solve = post_solve_pig_pig # Pig (1) vs Pig (1)
+    space.add_collision_handler(1, 3).post_solve = post_solve_pig_ground
 
     t1 = 0
     c = 0
@@ -872,33 +1087,33 @@ def main_loop():
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (10 + stop_button.get_width() > scale_x * x_mouse > 10 and
-                            10 + stop_button.get_height() > scale_y * y_mouse > 10):
+                    if (10*scale_x + stop_button.get_width()*scale_x > x_mouse > 10*scale_x and
+                            10*scale_y + stop_button.get_height()*scale_y > y_mouse > 10*scale_y):
                         game_state = 0
 
-                    elif (80 + replay_button.get_width() > scale_x * x_mouse > 80 and
-                        170 + replay_button.get_height() > scale_y * y_mouse > 190):
+                    elif (scale_x * 80 + replay_button.get_width()*scale_x > x_mouse > scale_x * 80 and
+                         scale_y *170 + replay_button.get_height()*scale_y > y_mouse >  scale_y *190):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (105 + menu_button.get_width() > scale_x * x_mouse > 105 and
-                        307 + menu_button.get_height() > scale_y * y_mouse > 307):
+                    elif (scale_x * 105 + menu_button.get_width()*scale_x > x_mouse > scale_x * 105 and
+                         scale_y *307 + menu_button.get_height()*scale_y > y_mouse > scale_y*307):
                         game_state = 6
                         levels_drawn = False
 
-                    elif (60 + sound_button.get_width() > scale_x * x_mouse > 55 and
-                        565 + sound_button.get_height() > scale_y * y_mouse > 565):
+                    elif (scale_x * 60 + sound_button.get_width()*scale_x > x_mouse > scale_x * 55 and
+                        scale_y * 565 + sound_button.get_height()*scale_y > y_mouse > scale_y * 565):
                         sound_on = not sound_on
 
             elif game_state == 4:
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (665 + next_button.get_width() > scale_x * x_mouse > 665 and
-                            480 + next_button.get_height() > scale_y * y_mouse > 480):
+                    if (680*scale_x + next_button.get_width()*scale_x > x_mouse > scale_x*680 and
+                            scale_y*480 + next_button.get_height()*scale_y > y_mouse > scale_y*480):
                         restart()
                         level.number += 1
                         game_state = 0
@@ -907,16 +1122,16 @@ def main_loop():
                         bird_path = []
                         bonus_score_once = True
 
-                    elif (559 + replay_button.get_width() > scale_x * x_mouse > 559 and
-                        486 + replay_button.get_height() > scale_y * y_mouse > 486):
+                    elif (570*scale_x + replay_button.get_width()*scale_x > x_mouse > scale_x*570 and
+                        480*scale_y + replay_button.get_height()*scale_y > y_mouse > 480*scale_y):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (452 + menu_button.get_width() > scale_x * x_mouse > 452 and
-                        490 + menu_button.get_height() > scale_y * y_mouse > 490):
+                    elif (460*scale_x + menu_button.get_width()*scale_x > x_mouse > 460*scale_x and
+                        480*scale_y + menu_button.get_height()*scale_y > y_mouse > 480*scale_y):
                         game_state = 6
                         levels_drawn = False
 
@@ -924,21 +1139,21 @@ def main_loop():
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
 
-                    if (559 + replay_button.get_width() > scale_x * x_mouse > 559 and
-                            486 + replay_button.get_height() > scale_y * y_mouse > 486):
+                    if (570*scale_x + replay_button.get_width()*scale_x > x_mouse > scale_x*570 and
+                        480*scale_y + replay_button.get_height()*scale_y > y_mouse > 480*scale_y):
                         restart()
                         level.load_level()
                         game_state = 0
                         bird_path = []
                         score = 0
 
-                    elif (452 + menu_button.get_width() > scale_x * x_mouse > 452 and
-                        490 + menu_button.get_height() > scale_y * y_mouse > 490):
+                    elif (460*scale_x + menu_button.get_width()*scale_x > x_mouse > 460*scale_x and
+                        480*scale_y + menu_button.get_height()*scale_y > y_mouse > 480*scale_y):
                         game_state = 6
                         levels_drawn = False
 
+
             elif game_state == 6:
-                
                 
                     if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                         x_mouse, y_mouse = event.pos
@@ -966,8 +1181,8 @@ def main_loop():
                                             bonus_score_once = True
                                             break
                         b_size_scaled = scale_size(menu_button.get_width(),menu_button.get_height()) # Scaled menu button
-                        if (101 + b_size_scaled[0] > x_mouse > 101 and
-                                51 + b_size_scaled[1] > y_mouse > 51):
+                        if (101*scale_x + b_size_scaled[0] > x_mouse > 101*scale_x and
+                                55*scale_y + b_size_scaled[1] > y_mouse > 55*scale_y):
                             game_state = 0
                             levels_drawn = False
 
@@ -994,7 +1209,7 @@ def main_loop():
             if level.number_of_birds > 0: # If there are birds left to shoot
                 #print(level.number_of_birds,level.level_birds)
                 for i in range(level.number_of_birds-1):
-                    print(i)
+                    #print(i)
                     
                     bird_type = level.level_birds[-i-2]
                     try:
@@ -1184,36 +1399,43 @@ def main_loop():
                 p = to_pygame(pig.body.position)
                 x, y = p
                 angle_degree = math.degrees(pig.body.angle)
+                pig_initial_hp = 75 # As defined in Pig class
+                pig_damage_display_threshold = pig_initial_hp / 2 # Show damaged if life is half or less
+                
+                normal_img_surface = None
+                damaged_img_surface = None
                 
                 if pigg.type == "n11":
-                    if pigg.life == 50: # Full health image
-                        pig_img = pg.transform.scale(n11,(pigg.radius*2,pigg.radius*2))
-                    else: # Damaged image
-                        pig_img = pg.transform.scale(n12,(pigg.radius*2,pigg.radius*2))
-                
+                    normal_img_surface = n11
+                    damaged_img_surface = n12
                 elif pigg.type == "n21":
-                    if pigg.life == 50:
-                        pig_img = pg.transform.scale(n21,(pigg.radius*2,pigg.radius*2))
-                    else:
-                        pig_img = pg.transform.scale(n22,(pigg.radius*2,pigg.radius*2))
-                        
+                    normal_img_surface = n21
+                    damaged_img_surface = n22
                 elif pigg.type == "n31":
-                    if pigg.life == 50:
-                        pig_img = pg.transform.scale(n31,(pigg.radius*2,pigg.radius*2))
-                    else:
-                        pig_img = pg.transform.scale(n32,(pigg.radius*2,pigg.radius*2))
-                        
+                    normal_img_surface = n31
+                    damaged_img_surface = n32
                 elif pigg.type == "n41":
-                    if pigg.life == 50:
-                        pig_img = pg.transform.scale(n41,(pigg.radius*2,pigg.radius*2))
-                    else:
-                        pig_img = pg.transform.scale(n42,(pigg.radius*2,pigg.radius*2))
-                        
-                if pigg.type == "n51":
-                    if pigg.life == 50:
-                        pig_img = pg.transform.scale(n51,(pigg.radius*2,pigg.radius*2))
-                    else:
-                        pig_img = pg.transform.scale(n52,(pigg.radius*2,pigg.radius*2))
+                    normal_img_surface = n41
+                    damaged_img_surface = n42
+                elif pigg.type == "n51": # Corrected 'if' to 'elif'
+                    normal_img_surface = n51
+                    damaged_img_surface = n52
+                
+                pig_img_to_use = None
+                if normal_img_surface and damaged_img_surface:
+                    if pigg.life > pig_damage_display_threshold:
+                        pig_img_to_use = normal_img_surface
+                    else: # Life is at or below threshold (and > 0, as it's still being drawn)
+                        pig_img_to_use = damaged_img_surface
+                elif normal_img_surface: # Fallback if damaged surface is somehow not defined
+                     pig_img_to_use = normal_img_surface
+
+                if pig_img_to_use:
+                    pig_img = pg.transform.scale(pig_img_to_use, (pigg.radius*2, pigg.radius*2))
+                else:
+                    # Fallback: draw a blue circle if no image determined (should not happen)
+                    pg.draw.circle(screen, BLUE, p, int(pigg.radius * scale_x), 0) # scale_x for rough pixel radius
+                    continue # Skip rotation and blit if no image
                 
                 pig_img = pg.transform.rotate(pig_img, angle_degree)
                 width, height = pig_img.get_size()
@@ -1320,14 +1542,14 @@ def main_loop():
             else:
                 screen.blit(number_font, scale_pos(1060, 130))
 
-            screen.blit(stop_button, scale_pos(8, 8))
+            screen.blit(pg.transform.scale(stop_button,(int(stop_button.get_width())*scale_x,int(stop_button.get_height())*scale_y)), scale_pos(8, 8))
 
             if not pigs and not mouse_pressed_to_shoot and not restart_counter and not birds:
                 print("Level cleared! Setting game_state to 4")
                 game_state = 4
                 restart_counter = True
 
-            if level.number_of_birds < 0 and pigs and not birds:
+            if level.number_of_birds == 0 and pigs and not birds:
                 game_state = 3
 
         elif game_state == 5:
@@ -1353,7 +1575,7 @@ def main_loop():
             # Centered purple background rect
             center_x = screen_width // 2
             center_y = screen_height // 2
-            rect_width = min(screen_width * 0.8, 600)  # Width: 80% screen or 600px max
+            rect_width = 800  # Width: 80% screen or 600px max
             rect_height = screen_height  # Height: full screen or a fixed value like 650px
             
             rect = pg.Rect(
@@ -1363,19 +1585,19 @@ def main_loop():
                 rect_height
             )
             pg.draw.rect(screen, (BLACK), rect)
-            screen.blit(level_cleared, scale_pos(450, 90)) # "Level Cleared!" text
+            screen.blit(level_cleared, scale_pos(500, 90)) # "Level Cleared!" text
 
             if score >= level.one_star:
-                screen.blit(star1, scale_pos(370, 190))
+                screen.blit(star1, scale_pos(350, 170))
             if score >= level.two_star:
-                screen.blit(star1, scale_pos(440, 140)) # Changed star2 to star1
+                screen.blit(star1, scale_pos(495, 120)) # Changed star2 to star1
             if score >= level.three_star:
-                screen.blit(star1, scale_pos(660, 190)) # Changed star3 to star1
+                screen.blit(star1, scale_pos(640, 160)) # Changed star3 to star1
 
-            screen.blit(score_level_cleared, scale_pos(555, 400)) # Display score
-            screen.blit(replay_button, scale_pos(555, 480))
-            screen.blit(next_button, scale_pos(665, 480))
-            screen.blit(menu_button, scale_pos(445, 480))
+            screen.blit(score_level_cleared, scale_pos(575, 400)) # Display score
+            screen.blit(pg.transform.scale(replay_button,(int(replay_button.get_width()*scale_x),int(replay_button.get_height()*scale_y))), scale_pos(555, 480))
+            screen.blit(pg.transform.scale(next_button,(int(replay_button.get_width()*scale_x),int(replay_button.get_height()*scale_y))), scale_pos(665, 480))
+            screen.blit(pg.transform.scale(menu_button,(int(replay_button.get_width()*scale_x),int(replay_button.get_height()*scale_y))), scale_pos(445, 480))
 
         elif game_state == 3:
             level_failed = bold_font3.render("Level failed!", 1, WHITE)
@@ -1384,28 +1606,29 @@ def main_loop():
             # Centered background for fail screen
             center_x = screen_width // 2
             center_y = screen_height // 2
-            rect_width = min(screen_width * 0.8, 600)
-            rect_height = screen_height
+            rect_width = 800  # Width: 80% screen or 600px max
+            rect_height = screen_height  # Height: full screen or a fixed value like 650px
             
-            rect = pg.Rect( # Define the rectangle
-                center_x - rect_width // 2,  # Center horizontally
-                center_y - rect_height // 2,  # Center vertically
+            rect = pg.Rect(
+                center_x - rect_width // 2,  # Center X
+                center_y - rect_height // 2,  # Center Y
                 rect_width,
                 rect_height
             )
             pg.draw.rect(screen, (BLACK), rect)
-            screen.blit(level_failed, scale_pos(450, 90))
-            # Display stars earned, even on fail
-            if score >= level.one_star:
-                screen.blit(star1, scale_pos(370, 190))
-            if score >= level.two_star:
-                screen.blit(star1, scale_pos(440, 140)) # Changed star2 to star1
-            if score >= level.three_star:
-                screen.blit(star1, scale_pos(660, 190)) # Changed star3 to star1
+            screen.blit(level_failed, scale_pos(500, 90)) # "Level Cleared!" text
 
-            screen.blit(score_level_failed, scale_pos(555, 400)) # Show score
-            screen.blit(replay_button, scale_pos(555, 480))
-            screen.blit(menu_button, scale_pos(445, 480))
+            if score >= level.one_star:
+                screen.blit(star1, scale_pos(350, 170))
+            if score >= level.two_star:
+                screen.blit(star1, scale_pos(495, 120)) # Changed star2 to star1
+            if score >= level.three_star:
+                screen.blit(star1, scale_pos(640, 160)) # Changed star3 to star1
+
+            screen.blit(score_level_failed, scale_pos(575, 400)) # Display score
+            screen.blit(pg.transform.scale(replay_button,(int(replay_button.get_width()*scale_x),int(replay_button.get_height()*scale_y))), scale_pos(555, 480))
+            screen.blit(pg.transform.scale(menu_button,(int(replay_button.get_width()*scale_x),int(replay_button.get_height()*scale_y))), scale_pos(445, 480))
+
 
         elif game_state == 6:
             def draw_levels():
@@ -1462,6 +1685,8 @@ def main_loop():
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
                                 screen.blit(level_font, (x + text_rect.x, y + text_rect.y))
 
+                screen.blit(back_arrow, scale_pos(10, 10))
+                
                 # Menu button scaling/pos (currently commented out from blitting)
                 menu_button_scaled = pg.transform.scale(menu_button, 
                     (int(menu_button.get_width() * scale_x), 
