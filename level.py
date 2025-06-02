@@ -4,9 +4,9 @@ import random
 import time
 
 
-wood_hp = 300  # Increased wood health
-stone_hp = 500 # Increased stone health
-ice_hp = 100   # Increased ice health
+wood_hp = 400  # Increased wood health
+stone_hp = 1000 # Increased stone health
+ice_hp = 150   # Increased ice health
 
 class Level():
     

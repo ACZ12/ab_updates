@@ -50,8 +50,8 @@ class Polygon():
             "triangles": pg.Rect(86, 102, 75, 100)  # Original: 161-86, 202-102
         }
         rects_stone = {
-            "beams": pg.Rect(181, 285, 24, 216),   # Original: 205-181, 501-285
-            "columns": pg.Rect(181, 285, 24, 216), # Original: 205-181, 501-285
+            "beams": pg.Rect(126, 285, 24, 216),   # Original: 205-181, 501-285
+            "columns": pg.Rect(126, 285, 24, 216), # Original: 205-181, 501-285
             "circles": pg.Rect(44, 247, 38, 40),   # Original: 82-44, 287-247
             "triangles": pg.Rect(165, 106, 76, 87) # Original: 241-165, 193-106
         }
@@ -127,7 +127,7 @@ class Polygon():
             current_body.position = Vec2d(*pos)
             current_shape = pm.Poly.create_box(current_body, (length, height))
 
-        elif element_type in ["circles", "bombs"]:
+        elif element_type in ["circles", "bombs", "potions"]:
             moment = pm.moment_for_circle(mass, 0, radius, (0,0))
             current_body = pm.Body(mass, moment)
             current_body.position = Vec2d(*pos)
@@ -215,8 +215,10 @@ class Polygon():
 
             image_to_render = None
             if self.uses_material_damage_textures:
+                #print(f"Using material damage textures for {self.element_type} with life {self.life}")
                 # Original logic for selecting damaged or normal texture
                 if self.life <= self.damage_threshold_life and self.life > 0 and self.life < self.original_life:
+                    #print(f"Using damaged texture for {self.element_type} with life {self.life}")
                     image_to_render = self.image_subsurface_damaged
                 else:
                     image_to_render = self.image_subsurface_normal
