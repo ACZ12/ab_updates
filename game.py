@@ -61,6 +61,7 @@ TRANSP = (0, 0, 0, 0)
 
 
 score = 0
+settings_open = False
 
 game_state = 7
 levels_drawn = False
@@ -81,10 +82,21 @@ slingl_scaled_height = None
 slingr_scaled_width = None
 slingr_scaled_height = None
 
-POLY_POLY_COLLISION_IMPULSE_THRESHOLD = 1500.0 
-POLY_POLY_DAMAGE_VALUE = 15  
-POLY_DESTROY_SCORE = 500     
+POLY_POLY_COLLISION_IMPULSE_THRESHOLD = 500.0 
+POLY_POLY_DAMAGE_VALUE = 50  # Increased from 15
+POLY_DESTROY_SCORE = 500    
+PIG_KO_SCORE = 10000         # Score for knocking out a pig
 ABILITY_COLLISION_IMPULSE_THRESHOLD = 2000.0 
+POLY_GROUND_IMPULSE_THRESHOLD = 750.0 # For polygons hitting the ground
+POLY_GROUND_DAMAGE_FACTOR = 0.1      # Damage factor for polygons hitting ground
+
+BOMB_EXPLOSION_KNOCKBACK_BASE = 7500 # Base impulse for bomb knockback
+# Patapim's Potion Explosion Parameters
+POTION_EXPLOSION_RADIUS = 110
+POTION_EXPLOSION_DAMAGE_PIGS = 160
+POTION_EXPLOSION_DAMAGE_POLYS = 1300
+POTION_EXPLOSION_KNOCKBACK_BASE = 7000
+
 
 
 
@@ -95,6 +107,14 @@ def main_loop():
     global POLY_POLY_COLLISION_IMPULSE_THRESHOLD
     global POLY_POLY_DAMAGE_VALUE
     global ABILITY_COLLISION_IMPULSE_THRESHOLD
+    global POLY_GROUND_IMPULSE_THRESHOLD
+    global POLY_GROUND_DAMAGE_FACTOR
+    global BOMB_EXPLOSION_KNOCKBACK_BASE
+    global POTION_EXPLOSION_RADIUS
+    global POTION_EXPLOSION_DAMAGE_PIGS
+    global POTION_EXPLOSION_DAMAGE_POLYS
+    global POTION_EXPLOSION_KNOCKBACK_BASE
+
 
     global bird_img
     global bird
@@ -125,6 +145,7 @@ def main_loop():
     global mouse_pressed_to_shoot
     global tick_to_next_circle
     global loaded
+    global settings_open
 
     global RED
     global BLUE
@@ -238,9 +259,9 @@ def main_loop():
 
     sound_button = pg.transform.scale(sound_button, (sound_button_scaled_width, sound_button_scaled_height))
 
-    rect = pg.Rect(73, 192, 92 - 73, 212 - 192)
-    muted_sound_button = buttons2.subsurface(rect).copy()
-    muted_sound_button = pg.transform.scale(muted_sound_button, (sound_button.get_width(), sound_button.get_height()))
+    
+    muted_sound_button_blue = pg.image.load(load_resource("./resources/images/muted_sound_button_blue.png")).convert_alpha()
+    sound_button_blue = pg.image.load(load_resource("./resources/images/sound_button_blue.png")).convert_alpha()
 
     rect = pg.Rect(26, 385, 117 - 26, 478 - 385)
     menu_button = buttons.subsurface(rect).copy()
@@ -248,7 +269,11 @@ def main_loop():
     rect = pg.Rect(291, 11, 547 - 291, 181 - 11)
     play_button = buttons.subsurface(rect).copy()
     
-    back_arrow = 
+    
+    back_arrow = pg.image.load(load_resource("./resources/images/back_arrow.png")).convert_alpha()
+    exit_button = pg.image.load(load_resource("./resources/images/exit_button.png")).convert_alpha()
+    settings_button = pg.image.load(load_resource("./resources/images/settings_button.png")).convert_alpha()
+    
 
     wood1 = pg.image.load(load_resource("./resources/images/wood.png")).convert_alpha()
     star1 = pg.image.load(load_resource("./resources/images/stars/gold_star.png")).convert_alpha()
@@ -329,7 +354,7 @@ def main_loop():
     # base physics
 
     space = pm.Space()
-    space.gravity = (0.0, -600.0) # Reduced gravity for longer travel distance
+    space.gravity = (0.0, -300.0) # Reduced gravity for longer travel distance
 
     
     # STATIC FLOOR
@@ -510,7 +535,7 @@ def main_loop():
                 if pig.life <= 0:
                     pig_to_remove.append(pig)
                     global score
-                    score += 10000
+                    score += PIG_KO_SCORE
 
         for pig in pig_to_remove:
             space.remove(pig.shape, pig.body)
@@ -527,16 +552,30 @@ def main_loop():
         wood_body = b.body  # Get the wood's body.  Need this.
         bird_momentum = bird_body.mass * bird_body.velocity.length # Bird's momentum
 
+        # Find the specific bird instance involved in this collision
+        colliding_bird_instance = None
+        for bird_obj in birds: # Iterate through the global list of active birds
+            if bird_obj.body == bird_body:
+                colliding_bird_instance = bird_obj
+                break
+
         damage = 0
         # Use existing impulse threshold, adjust damage factor
         if arbiter.total_impulse.length > 0: # Existing threshold for bird hitting wood
-            momentum_damage_factor = 0.1 # Reduced factor for more balanced damage
+            bird_has_hit_ground = False
+            if colliding_bird_instance:
+                bird_has_hit_ground = colliding_bird_instance.bird_hit_ground
+
+            if bird_has_hit_ground and not isinstance(colliding_bird_instance, ch.Liri):
+                momentum_damage_factor = 0.01
+            else:
+                momentum_damage_factor = 0.03
             damage = bird_momentum * momentum_damage_factor
-            
+                
             for element in columns + circles + beams + triangles:
                 if element.shape.body == wood_body:  # Change to check the body
                     element.life -= damage
-                    print(f"DEBUG: Bird hit {element.material_type} {element.element_type}. Damage: {damage:.2f}. Remaining Life: {element.life:.2f}")
+                    print(f"DEBUG: Bird (ground_hit: {bird_has_hit_ground}) hit {element.material_type} {element.element_type}. Damage: {damage:.2f}. Life: {element.life:.2f}")
                     if element.life <= 0:
                         element_to_remove.append(element)
                         global score
@@ -559,6 +598,7 @@ def main_loop():
     
         is_sahurs_bat_collision = False
         is_bombs_bomb_collision = False
+        is_patapims_potion_collision = False # Initialize to False
         source_ability_polygon_object = None # This will be the Polygon instance of the bat or bomb
     
         if birds: # Ensure there's an active bird
@@ -577,6 +617,13 @@ def main_loop():
                active_bird.ability_polygon.shape == wood_poly_shape:
                 is_bombs_bomb_collision = True
                 source_ability_polygon_object = active_bird.ability_polygon
+            elif isinstance(active_bird, ch.Patapim) and \
+               active_bird.fahigkeit_verwendet and \
+               hasattr(active_bird, 'ability_polygon') and \
+               active_bird.ability_polygon is not None and \
+               active_bird.ability_polygon.shape == wood_poly_shape:
+                is_patapims_potion_collision = True
+                source_ability_polygon_object = active_bird.ability_polygon
         
         # --- Handle Sahur's Bat Collision ---
         if is_sahurs_bat_collision: # Sahur's bat is special
@@ -588,7 +635,7 @@ def main_loop():
                         if pig.life <= 0 and pig not in pig_to_remove:
                             pig_to_remove.append(pig)
                             global score
-                            score += 10000
+                            score += PIG_KO_SCORE
                         break
         # --- Handle Bomb's Projectile Collision (Explosion) ---
         elif is_bombs_bomb_collision:
@@ -597,9 +644,9 @@ def main_loop():
                source_ability_polygon_object and source_ability_polygon_object.in_space:
                 
                 explosion_center = source_ability_polygon_object.body.position
-                explosion_radius = 150  # World units for explosion AoE
-                explosion_base_damage_pigs = 175 # Base damage for pigs in AoE
-                explosion_base_damage_polys = 120 # Base damage for polygons in AoE
+                explosion_radius = 130          # Example: 600 if you want larger radius
+                explosion_base_damage_polys = 1700 # Example: 3000 if you want higher poly damage
+                explosion_base_damage_pigs = 175
 
                 # 1. Damage the directly hit pig (it takes more damage)
                 for pig in pigs:
@@ -607,11 +654,11 @@ def main_loop():
                         pig.life -= explosion_base_damage_pigs * 1.5 # Direct hit bonus
                         if pig.life <= 0 and pig not in pig_to_remove:
                             pig_to_remove.append(pig)
-                            score += 10000 
+                            score += PIG_KO_SCORE 
                         break # Found and processed the directly hit pig
 
                 # 2. Damage other pigs in the explosion radius
-                for other_pig in pigs:
+                for other_pig in pigs+beams+columns+circles+triangles:
                     if other_pig.shape == pig_shape: continue # Skip the directly hit one
                     
                     dist_vec = other_pig.body.position - explosion_center
@@ -624,7 +671,25 @@ def main_loop():
                         other_pig.life -= actual_damage
                         if other_pig.life <= 0 and other_pig not in pig_to_remove:
                             pig_to_remove.append(other_pig)
-                            score += 10000
+                            score += PIG_KO_SCORE
+
+                # 3. Apply Knockback to pigs from Bomb Explosion
+                for other_pig in pigs: # Iterate through all pigs
+                    if not other_pig.body or other_pig.shape == pig_shape : continue # Skip the directly hit one if it's a pig
+                    if other_pig.body.body_type == pm.Body.STATIC: continue
+
+                    dist_vec_knockback = other_pig.body.position - explosion_center
+                    distance_knockback = dist_vec_knockback.length
+                    if distance_knockback < explosion_radius and distance_knockback > 0: # Must be within radius and not at center
+                        knockback_dir = dist_vec_knockback.normalized()
+                        # Falloff: stronger closer, weaker further.
+                        falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                        knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                        
+                        # Apply less knockback to heavier pigs if desired, or keep it consistent
+                        # For now, consistent base impulse scaled by falloff
+                        other_pig.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+                        print(f"DEBUG: Bomb explosion knockback on Pig. Impulse: {knockback_impulse_magnitude:.2f}")
 
                 # 3. Damage polygons (blocks) in the explosion radius
                 polys_in_explosion_to_remove_locally = [] # Temp list for this specific explosion
@@ -644,6 +709,20 @@ def main_loop():
                         if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
                             polys_in_explosion_to_remove_locally.append(poly_item)
                             score += POLY_DESTROY_SCORE 
+
+                # 4. Apply Knockback to polygons from Bomb Explosion
+                for poly_item in all_destructible_polys:
+                    if poly_item == source_ability_polygon_object: continue # Bomb doesn't knock itself back
+                    if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+
+                    dist_vec_knockback = poly_item.body.position - explosion_center
+                    distance_knockback = dist_vec_knockback.length
+                    if distance_knockback < explosion_radius and distance_knockback > 0:
+                        knockback_dir = dist_vec_knockback.normalized()
+                        falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                        knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                        poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+                        print(f"DEBUG: Bomb explosion knockback on {poly_item.material_type} {poly_item.element_type}. Impulse: {knockback_impulse_magnitude:.2f}")
                 
                 # Remove polygons destroyed by this explosion
                 for poly_to_destroy in polys_in_explosion_to_remove_locally:
@@ -665,6 +744,98 @@ def main_loop():
                     if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == source_ability_polygon_object:
                         active_bird.ability_polygon = None
         # --- Handle Generic Polygon (non-ability) Collision with Pig ---
+        elif is_patapims_potion_collision: # Patapim's Potion hit a pig
+            if arbiter.total_impulse.length > 10.0 and \
+               source_ability_polygon_object and source_ability_polygon_object.in_space:
+                
+                explosion_center = source_ability_polygon_object.body.position
+                # Using Patapim's specific explosion parameters
+                current_explosion_radius = POTION_EXPLOSION_RADIUS
+                current_explosion_damage_polys = POTION_EXPLOSION_DAMAGE_POLYS
+                current_explosion_damage_pigs = POTION_EXPLOSION_DAMAGE_PIGS
+                current_explosion_knockback_base = POTION_EXPLOSION_KNOCKBACK_BASE
+
+                # 1. Damage the directly hit pig
+                for pig in pigs:
+                    if pig.shape == pig_shape:
+                        pig.life -= current_explosion_damage_pigs * 1.5 # Direct hit bonus
+                        if pig.life <= 0 and pig not in pig_to_remove:
+                            pig_to_remove.append(pig)
+                            score += PIG_KO_SCORE
+                        break
+
+                # 2. Damage other pigs in radius
+                for other_pig in pigs:
+                    if other_pig.shape == pig_shape: continue
+                    if not other_pig.body or not other_pig.shape: continue
+                    dist_vec = other_pig.body.position - explosion_center
+                    distance = dist_vec.length
+                    if distance < current_explosion_radius:
+                        damage_falloff_factor = max(0, (current_explosion_radius - distance) / current_explosion_radius)
+                        actual_damage = current_explosion_damage_pigs * damage_falloff_factor
+                        other_pig.life -= actual_damage
+                        if other_pig.life <= 0 and other_pig not in pig_to_remove:
+                            pig_to_remove.append(other_pig)
+                            score += PIG_KO_SCORE
+                
+                # 3. Knockback pigs
+                for other_pig in pigs:
+                    if not other_pig.body or other_pig.body.body_type == pm.Body.STATIC: continue
+                    dist_vec_knockback = other_pig.body.position - explosion_center
+                    distance_knockback = dist_vec_knockback.length
+                    if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                        knockback_dir = dist_vec_knockback.normalized()
+                        falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                        knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                        other_pig.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                # 4. Damage polygons in radius
+                polys_in_explosion_to_remove_locally = []
+                all_destructible_polys_potion = columns + beams + circles + triangles
+                for poly_item in all_destructible_polys_potion:
+                    if poly_item == source_ability_polygon_object: continue
+                    if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                    dist_vec = poly_item.body.position - explosion_center
+                    distance = dist_vec.length
+                    if distance < current_explosion_radius:
+                        damage_falloff_factor = max(0, (current_explosion_radius - distance) / current_explosion_radius)
+                        actual_damage = current_explosion_damage_polys * damage_falloff_factor
+                        poly_item.life -= actual_damage
+                        if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                            polys_in_explosion_to_remove_locally.append(poly_item)
+                            score += POLY_DESTROY_SCORE
+                
+                # 5. Knockback polygons
+                for poly_item in all_destructible_polys_potion:
+                    if poly_item == source_ability_polygon_object: continue
+                    if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                    dist_vec_knockback = poly_item.body.position - explosion_center
+                    distance_knockback = dist_vec_knockback.length
+                    if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                        knockback_dir = dist_vec_knockback.normalized()
+                        falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                        knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                        poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                # Remove destroyed polygons and the potion itself (common removal logic for potion explosion)
+                # This will be handled by the generic removal logic for ability projectiles at the end of this handler if source_ability_polygon_object is marked.
+                # For now, let's ensure the potion is removed.
+                if source_ability_polygon_object.in_space:
+                    space.remove(source_ability_polygon_object.shape, source_ability_polygon_object.body)
+                    source_ability_polygon_object.in_space = False
+                    if source_ability_polygon_object in columns: columns.remove(source_ability_polygon_object)
+                    if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == source_ability_polygon_object:
+                        active_bird.ability_polygon = None
+
+                for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                    if poly_to_destroy.in_space:
+                        space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                        poly_to_destroy.in_space = False
+                        if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                        elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                        elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                        elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+
         else: # Neither Sahur's bat nor Bomb's projectile - a regular polygon hit a pig
             colliding_poly_object = None
             all_destructible_polys = columns + beams + circles + triangles
@@ -673,42 +844,51 @@ def main_loop():
                     colliding_poly_object = poly_item
                     break
             
-            if arbiter.total_impulse.length > 1000: # Impulse threshold for pig damaging polygon and vice-versa
-                generic_poly_damage = 80 
-                # Damage the pig
-                for pig in pigs:
-                    if pig.shape == pig_shape:
-                        pig.life -= generic_poly_damage
-                        if pig.life <= 0 and pig not in pig_to_remove:
-                            pig_to_remove.append(pig)
-                            score += 10000
-                        break 
-
-                # Damage the polygon if it's a dynamic, non-bat polygon
-                if colliding_poly_object and \
-                   colliding_poly_object.body.body_type == pm.Body.DYNAMIC and \
-                   colliding_poly_object.element_type != "bats":
+            # Find the Pig instance for pig_shape
+            actual_pig_instance = None
+            for p_instance in pigs:
+                if p_instance.shape == pig_shape:
+                    actual_pig_instance = p_instance
+                    break
+            
+            # Proceed if both pig and polygon instances are found
+            if actual_pig_instance and colliding_poly_object:
+                # General collision impulse threshold for any interaction
+                if arbiter.total_impulse.length > 900: 
                     
-                    # Damage to polygon based on collision impulse
-                    poly_damage_from_pig_factor = 0.03 # Adjust this factor as needed
-                    damage_to_poly = arbiter.total_impulse.length * poly_damage_from_pig_factor
-                    colliding_poly_object.life -= damage_to_poly
-                    print(f"DEBUG: Pig hit {colliding_poly_object.material_type} {colliding_poly_object.element_type}. Damage: {damage_to_poly:.2f}. Remaining Life: {colliding_poly_object.life:.2f}")
-                    if colliding_poly_object.life <= 0 and colliding_poly_object.in_space:
-                        # Add to a temporary list for removal to avoid modifying lists while iterating
-                        # This part will be handled by the general polygon removal logic if not already covered
-                        if colliding_poly_object not in polys_in_explosion_to_remove_locally: # Re-use temp list name, or create new
-                             # We need a robust way to remove this polygon.
-                             # For now, let's assume post_solve_poly_vs_poly might catch it,
-                             # or we add specific removal here.
-                            if colliding_poly_object.in_space:
-                                space.remove(colliding_poly_object.shape, colliding_poly_object.body)
-                                colliding_poly_object.in_space = False
-                                if colliding_poly_object in columns: columns.remove(colliding_poly_object)
-                                elif colliding_poly_object in beams: beams.remove(colliding_poly_object)
-                                elif colliding_poly_object in circles: circles.remove(colliding_poly_object)
-                                elif colliding_poly_object in triangles: triangles.remove(colliding_poly_object)
-                                score += POLY_DESTROY_SCORE
+                    # Part 1: Damage TO THE POLYGON from the Pig's momentum (User's Request)
+                    if colliding_poly_object.body.body_type == pm.Body.DYNAMIC and \
+                       colliding_poly_object.element_type != "bats": # Ensure polygon is dynamic and not a special bat
+                        
+                        momentum_pig = actual_pig_instance.body.mass * actual_pig_instance.body.velocity.length
+                        # TUNABLE: Factor to scale pig's momentum to damage dealt to polygon
+                        poly_damage_from_pig_momentum_factor = 0.05 
+                        
+                        damage_to_poly = momentum_pig * poly_damage_from_pig_momentum_factor
+                        colliding_poly_object.life -= damage_to_poly
+                        print(f"DEBUG: Pig (momentum {momentum_pig:.2f}) hit {colliding_poly_object.material_type} {colliding_poly_object.element_type}. Damage: {damage_to_poly:.2f}. Remaining Life: {colliding_poly_object.life:.2f}")
+                        
+                        if colliding_poly_object.life <= 0 and colliding_poly_object.in_space:
+                            # Remove the polygon if destroyed
+                            space.remove(colliding_poly_object.shape, colliding_poly_object.body)
+                            colliding_poly_object.in_space = False
+                            if colliding_poly_object in columns: columns.remove(colliding_poly_object)
+                            elif colliding_poly_object in beams: beams.remove(colliding_poly_object)
+                            elif colliding_poly_object in circles: circles.remove(colliding_poly_object)
+                            elif colliding_poly_object in triangles: triangles.remove(colliding_poly_object)
+                            score += POLY_DESTROY_SCORE
+                    
+                    # Part 2: Damage TO THE PIG from the Polygon (Existing logic: fixed damage)
+                    # This part remains as per the original code, as the request was about damage taken by the polygon.
+                    generic_poly_damage_to_pig = 80 # Fixed damage from polygon to pig
+                    actual_pig_instance.life -= generic_poly_damage_to_pig
+                    # The print for this is less specific, so it's commented out to avoid log spam if other pig damage sources also print.
+                    # print(f"DEBUG: Polygon hit Pig. Fixed Damage: {generic_poly_damage_to_pig}. Pig Remaining Life: {actual_pig_instance.life:.2f}")
+                    if actual_pig_instance.life <= 0 and actual_pig_instance not in pig_to_remove:
+                        # pig_to_remove is defined at the beginning of post_solve_pig_wood
+                        pig_to_remove.append(actual_pig_instance)
+                        score += PIG_KO_SCORE # Standard pig KO score
+
         
         # Common removal for pigs damaged in any of the above scenarios
         for pig_obj in pig_to_remove: # pig_to_remove now contains Pig objects
@@ -745,7 +925,12 @@ def main_loop():
                         velocity_reduction_factor = 0.3 # How much to slow down
                         if arbiter.total_impulse.length > impact_velocity_reduction_threshold:
                             colliding_bird_instance.body.velocity *= (1 - velocity_reduction_factor*2)
+                        
+                        # Dampen angular velocity significantly upon hitting the ground
+                        angular_damping_factor = 0.995 # Keep 10% of angular velocity
+                        colliding_bird_instance.body.angular_velocity *= angular_damping_factor
                         colliding_bird_instance.bird_hit_ground = True
+                        colliding_bird_instance.body.impulse = (0, 0) # Reset impulse to prevent further movement
                         break # Found the ground, stop checking
                 
     def post_solve_pig_ground(arbiter, space, _):
@@ -778,7 +963,7 @@ def main_loop():
                         if colliding_pig_instance in pigs: # Check if not already removed
                             space.remove(colliding_pig_instance.shape, colliding_pig_instance.body)
                             pigs.remove(colliding_pig_instance)
-                            score += 10000 # Or a specific score for ground impact KO
+                            score += PIG_KO_SCORE # Or a specific score for ground impact KO
 
     def post_solve_pig_pig(arbiter, space, _):
         global pigs, score
@@ -799,7 +984,7 @@ def main_loop():
         if pig_a_instance and pig_b_instance:
             # Damage pigs based on impact impulse
             impulse_threshold_for_damage = 300  # Min impulse for pig-pig damage
-            damage_factor_pig_pig = 0.015       # Adjust this to control damage amount
+            damage_factor_pig_pig = 0.2       # Adjust this to control damage amount
 
             if arbiter.total_impulse.length > impulse_threshold_for_damage:
                 damage_to_pigs = arbiter.total_impulse.length * damage_factor_pig_pig
@@ -822,114 +1007,542 @@ def main_loop():
                     if pig_to_remove in pigs: # Check if not already removed
                         space.remove(pig_to_remove.shape, pig_to_remove.body)
                         pigs.remove(pig_to_remove)
-                        score += 10000 # Standard score for pig KO
+                        score += PIG_KO_SCORE # Standard score for pig KO
 
     def post_solve_poly_vs_poly(arbiter, space, data):
         global columns, beams, circles, triangles, score, birds # Ensure all necessary globals are accessible
 
-        shape_a, shape_b = arbiter.shapes
-        
+        shape_a_raw, shape_b_raw = arbiter.shapes # Use clear names for the raw shapes
+
         poly_a_obj = None
         poly_b_obj = None
-        
-        # Ability polygons (bats/projectiles) are often stored in 'columns' list by character.py
+
+        # Find the Polygon objects corresponding to the Pymunk shapes
+        # Ability polygons (like bomb projectiles) are often stored in 'columns'
         all_polys = columns + beams + circles + triangles
         for poly in all_polys:
-            if poly.shape == shape_a:
+            if poly.shape == shape_a_raw:
                 poly_a_obj = poly
-            if poly.shape == shape_b:
+            if poly.shape == shape_b_raw:
                 poly_b_obj = poly
             if poly_a_obj and poly_b_obj: # Found both
                 break
-
+        
         if not poly_a_obj or not poly_b_obj:
-            # One or both shapes aren't our Polygon objects, bail.
+            # One or both shapes aren't our managed Polygon objects, bail.
             return
 
-        # --- Part 1: Handle Active Special Ability Polygons (e.g., Sahur's Bat, Glorbo's Projectile) ---
-        active_ability_item = None
-        source_bird_for_ability = None
+        # --- Part 1: Handle Active Special Ability Polygons (e.g., Sahur's Bat, Bomb's Projectile) ---
+        active_bird = birds[-1] if birds else None
 
-        if birds: # Check if there are active birds
-            last_bird_launched = birds[-1] # The bird currently in play or last launched
-            if last_bird_launched.fahigkeit_verwendet and \
-            hasattr(last_bird_launched, 'ability_polygon') and \
-            last_bird_launched.ability_polygon is not None:
+        # Check if the active bird's ability is involved in this collision
+        if active_bird and active_bird.fahigkeit_verwendet and \
+           hasattr(active_bird, 'ability_polygon') and \
+           active_bird.ability_polygon is not None:
+
+            ability_poly_instance = active_bird.ability_polygon
+            
+            # --- Handle Bomb's Projectile Collision with another Polygon ---
+            if isinstance(active_bird, ch.Bomb):
+                bomb_projectile_obj = None
+                other_poly_hit_by_bomb = None
+
+                if ability_poly_instance == poly_a_obj: # poly_a_obj is the bomb projectile
+                    bomb_projectile_obj = poly_a_obj
+                    other_poly_hit_by_bomb = poly_b_obj
+                elif ability_poly_instance == poly_b_obj: # poly_b_obj is the bomb projectile
+                    bomb_projectile_obj = poly_b_obj
+                    other_poly_hit_by_bomb = poly_a_obj
                 
-                if poly_a_obj == last_bird_launched.ability_polygon:
-                    active_ability_item = poly_a_obj
-                    source_bird_for_ability = last_bird_launched
-                elif poly_b_obj == last_bird_launched.ability_polygon:
-                    active_ability_item = poly_b_obj
-                    source_bird_for_ability = last_bird_launched
-        
-        elements_to_remove_from_ability_collision = []
+                if bomb_projectile_obj and other_poly_hit_by_bomb:
+                    # Bomb projectile has directly hit another polygon
+                    print(f"DEBUG: Bomb projectile directly hit {other_poly_hit_by_bomb.material_type} {other_poly_hit_by_bomb.element_type}.")
+                    
+                    # Trigger explosion if impulse is sufficient and both objects are valid
+                    if arbiter.total_impulse.length > 10.0 and \
+                       bomb_projectile_obj.in_space and other_poly_hit_by_bomb.in_space:
+                        
+                        explosion_center = bomb_projectile_obj.body.position
+                        # IF YOU WANT DIFFERENT VALUES FOR POLY-POLY BOMB EXPLOSION, CHANGE THEM HERE:
+                        explosion_radius = 130          # Example: 600 if you want larger radius
+                        explosion_base_damage_polys = 1700 # Example: 3000 if you want higher poly damage
+                        explosion_base_damage_pigs = 175  # Consistent base damage for pigs
 
-        if active_ability_item:
-            attacker_poly = active_ability_item # This is the ability item (e.g., bat, projectile)
-            victim_poly = poly_b_obj if attacker_poly == poly_a_obj else poly_a_obj
+                        print(f"DEBUG: Bomb exploding (poly hit poly). Center: {explosion_center}, Radius: {explosion_radius}, Poly Dmg: {explosion_base_damage_polys}, Pig Dmg: {explosion_base_damage_pigs}")
 
-            # Ability items (bats/projectiles) are typically STATIC. They damage DYNAMIC, non-"bats" polygons.
-            # Also ensure victim_poly is not None (it should be caught by the initial check, but good practice)
-            if victim_poly.body.body_type == pm.Body.DYNAMIC and victim_poly.element_type != "bats":
-                damage_from_ability = 0
-                apply_ability_damage = False
-                score_for_ability_destroy = 1000
-
-                if isinstance(source_bird_for_ability, ch.Sahur):
-                    # Sahur's bat: very low impulse threshold for damage
-                    if arbiter.total_impulse.length > 10.0:
-                        damage_from_ability = 500 # Increased damage for Sahur's bat on polygons
-                        apply_ability_damage = True
-                elif isinstance(source_bird_for_ability, ch.Glorbo): # Glorbo's projectile (if any)
-                    pass # Glorbo no longer has a damaging projectile, this path can be removed or left empty.
-                
-                if apply_ability_damage and damage_from_ability > 0:
-                    victim_poly.life -= damage_from_ability
-                    if victim_poly.life <= 0:
-                        if victim_poly.in_space and victim_poly not in elements_to_remove_from_ability_collision:
-                            elements_to_remove_from_ability_collision.append(victim_poly)
-                            score += score_for_ability_destroy
+                        # Damage POLYGONS in the explosion radius
+                        polys_in_explosion_to_remove_locally = []
+                        # all_polys was defined earlier
+                        for poly_item in all_polys:
+                            if poly_item == bomb_projectile_obj: continue # Bomb doesn't damage itself
                             
-            for element in elements_to_remove_from_ability_collision:
-                if element.in_space:
-                    space.remove(element.shape, element.body)
-                    element.in_space = False
-                    if element in columns: columns.remove(element)
-                    elif element in beams: beams.remove(element)
-                    elif element in circles: circles.remove(element)
-                    elif element in triangles: triangles.remove(element)
-            return # Active ability collision handled, skip general poly-poly.
+                            if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue 
 
-        # --- Part 2: Handle General Polygon-on-Polygon Collisions ---
-        # This part executes if NEITHER poly_a_obj nor poly_b_obj is an ACTIVE ability item of the LATEST bird.
-        elements_to_remove_from_general_collision = []
-        impulse_strength = arbiter.total_impulse.length
+                            dist_vec = poly_item.body.position - explosion_center
+                            distance = dist_vec.length
+                            if distance < explosion_radius:
+                                damage_falloff_factor = max(0, (explosion_radius - distance) / explosion_radius)
+                                actual_damage = explosion_base_damage_polys * damage_falloff_factor
+                                
+                                poly_item.life -= actual_damage
+                                print(f"DEBUG: Bomb explosion hit {poly_item.material_type} {poly_item.element_type}. Damage: {actual_damage:.2f}. Remaining Life: {poly_item.life:.2f}")
+                                if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                                    polys_in_explosion_to_remove_locally.append(poly_item)
+                                    score += POLY_DESTROY_SCORE 
+                        
+                        # Apply KNOCKBACK to POLYGONS from Bomb Explosion
+                        for poly_item in all_polys: # all_polys was defined earlier
+                            if poly_item == bomb_projectile_obj: continue
+                            if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
 
-        # Damage poly_a_obj if it's dynamic, not "bats", and impulse is high enough
-        if poly_a_obj.body.body_type == pm.Body.DYNAMIC and poly_a_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
-            poly_a_obj.life -= POLY_POLY_DAMAGE_VALUE
-            print(f"DEBUG: Poly-Poly hit {poly_a_obj.material_type} {poly_a_obj.element_type} (A). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_a_obj.life:.2f}")
-            if poly_a_obj.life <= 0 and poly_a_obj.in_space and poly_a_obj not in elements_to_remove_from_general_collision:
-                elements_to_remove_from_general_collision.append(poly_a_obj)
-                score += POLY_DESTROY_SCORE
+                            dist_vec_knockback = poly_item.body.position - explosion_center
+                            distance_knockback = dist_vec_knockback.length
+                            if distance_knockback < explosion_radius and distance_knockback > 0:
+                                knockback_dir = dist_vec_knockback.normalized()
+                                falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                                knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                                poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+                                print(f"DEBUG: Bomb explosion (poly hit poly) knockback on {poly_item.material_type} {poly_item.element_type}. Impulse: {knockback_impulse_magnitude:.2f}")
+
+                        # Apply KNOCKBACK to PIGS from Bomb Explosion
+                        for pig_item in pigs:
+                            if not pig_item.body or pig_item.body.body_type == pm.Body.STATIC: continue
+
+                            dist_vec_knockback = pig_item.body.position - explosion_center
+                            distance_knockback = dist_vec_knockback.length
+                            if distance_knockback < explosion_radius and distance_knockback > 0:
+                                knockback_dir = dist_vec_knockback.normalized()
+                                falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                                knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                                pig_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+                                print(f"DEBUG: Bomb explosion (poly hit poly) knockback on Pig. Impulse: {knockback_impulse_magnitude:.2f}")
+
+
+
+                        
+                        # Remove polygons destroyed by this explosion
+                        for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                            if poly_to_destroy.in_space: # Check again before removal
+                                space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                                poly_to_destroy.in_space = False
+                                if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                                elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                                elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                                elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+                        
+                        # 4. Remove the bomb projectile itself after explosion
+                        if bomb_projectile_obj.in_space: # Check it wasn't already removed
+                            space.remove(bomb_projectile_obj.shape, bomb_projectile_obj.body)
+                            bomb_projectile_obj.in_space = False
+                            if bomb_projectile_obj in columns: # Bomb projectiles are added to columns
+                                columns.remove(bomb_projectile_obj)
+                            # Nullify the bird's reference to this ability polygon
+                            if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == bomb_projectile_obj:
+                                active_bird.ability_polygon = None
                 
-        # Damage poly_b_obj if it's dynamic, not "bats", and impulse is high enough
-        if poly_b_obj.body.body_type == pm.Body.DYNAMIC and poly_b_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
-            poly_b_obj.life -= POLY_POLY_DAMAGE_VALUE
-            print(f"DEBUG: Poly-Poly hit {poly_b_obj.material_type} {poly_b_obj.element_type} (B). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_b_obj.life:.2f}")
-            if poly_b_obj.life <= 0 and poly_b_obj.in_space and poly_b_obj not in elements_to_remove_from_general_collision:
-                elements_to_remove_from_general_collision.append(poly_b_obj)
-                score += POLY_DESTROY_SCORE
+            elif isinstance(active_bird, ch.Patapim): # Patapim's Potion collision with another Polygon
+                potion_projectile_obj = None
+                other_poly_hit_by_potion = None
 
-        for element in elements_to_remove_from_general_collision:
-            if element.in_space: # Check again before removal
-                space.remove(element.shape, element.body)
-                element.in_space = False
-                if element in columns: columns.remove(element)
-                elif element in beams: beams.remove(element)
-                elif element in circles: circles.remove(element)
-                elif element in triangles: triangles.remove(element)
+                if ability_poly_instance == poly_a_obj:
+                    potion_projectile_obj = poly_a_obj
+                    other_poly_hit_by_potion = poly_b_obj
+                elif ability_poly_instance == poly_b_obj:
+                    potion_projectile_obj = poly_b_obj
+                    other_poly_hit_by_potion = poly_a_obj
+                
+                if potion_projectile_obj and other_poly_hit_by_potion:
+                    print(f"DEBUG: Patapim potion directly hit {other_poly_hit_by_potion.material_type} {other_poly_hit_by_potion.element_type}.")
+                    if arbiter.total_impulse.length > 10.0 and \
+                       potion_projectile_obj.in_space and other_poly_hit_by_potion.in_space:
+                        
+                        explosion_center = potion_projectile_obj.body.position
+                        current_explosion_radius = POTION_EXPLOSION_RADIUS
+                        current_explosion_damage_polys = POTION_EXPLOSION_DAMAGE_POLYS
+                        current_explosion_damage_pigs = POTION_EXPLOSION_DAMAGE_PIGS
+                        current_explosion_knockback_base = POTION_EXPLOSION_KNOCKBACK_BASE
+
+                        # Damage POLYGONS in radius
+                        polys_in_explosion_to_remove_locally = []
+                        for poly_item in all_polys: # all_polys defined earlier
+                            if poly_item == potion_projectile_obj: continue
+                            if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                            dist_vec = poly_item.body.position - explosion_center
+                            distance = dist_vec.length
+                            if distance < current_explosion_radius:
+                                damage_falloff_factor = max(0, (current_explosion_radius - distance) / current_explosion_radius)
+                                actual_damage = current_explosion_damage_polys * damage_falloff_factor
+                                poly_item.life -= actual_damage
+                                if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                                    polys_in_explosion_to_remove_locally.append(poly_item)
+                                    score += POLY_DESTROY_SCORE
+                        
+                        # Knockback POLYGONS
+                        for poly_item in all_polys:
+                            if poly_item == potion_projectile_obj: continue
+                            if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                            dist_vec_knockback = poly_item.body.position - explosion_center
+                            distance_knockback = dist_vec_knockback.length
+                            if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                                knockback_dir = dist_vec_knockback.normalized()
+                                falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                                knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                                poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                        # Knockback PIGS (damage to pigs handled if potion hits pig directly in pig_wood)
+                        for pig_item in pigs:
+                            if not pig_item.body or pig_item.body.body_type == pm.Body.STATIC: continue
+                            dist_vec_knockback = pig_item.body.position - explosion_center
+                            distance_knockback = dist_vec_knockback.length
+                            if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                                knockback_dir = dist_vec_knockback.normalized()
+                                falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                                knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                                pig_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                        # Remove destroyed polygons
+                        for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                            if poly_to_destroy.in_space:
+                                space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                                poly_to_destroy.in_space = False
+                                if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                                elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                                elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                                elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+                        
+                        # Remove the potion projectile
+                        if potion_projectile_obj.in_space:
+                            space.remove(potion_projectile_obj.shape, potion_projectile_obj.body)
+                            potion_projectile_obj.in_space = False
+                            if potion_projectile_obj in columns: columns.remove(potion_projectile_obj)
+                            if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == potion_projectile_obj:
+                                active_bird.ability_polygon = None
+                        return # Potion explosion handled for this pair
+
+                # Ability polygons (bats/projectiles) are often stored in 'columns' list by character.py
+                all_polys = columns + beams + circles + triangles
+                for poly in all_polys:
+                    if poly.shape == shape_a_raw:
+                        poly_a_obj = poly
+                    if poly.shape == shape_b_raw:
+                        poly_b_obj = poly
+                    if poly_a_obj and poly_b_obj: # Found both
+                        break
+
+                if not poly_a_obj or not poly_b_obj:
+                    # One or both shapes aren't our Polygon objects, bail.
+                    return
+            
+                # --- Part 1: Handle Active Special Ability Polygons (e.g., Sahur's Bat, Glorbo's Projectile) ---
+                active_ability_item = None
+                source_bird_for_ability = None
+
+                if birds: # Check if there are active birds
+                    last_bird_launched = birds[-1] # The bird currently in play or last launched
+                    if last_bird_launched.fahigkeit_verwendet and \
+                    hasattr(last_bird_launched, 'ability_polygon') and \
+                    last_bird_launched.ability_polygon is not None:
+                        
+                        if poly_a_obj == last_bird_launched.ability_polygon:
+                            active_ability_item = poly_a_obj
+                            source_bird_for_ability = last_bird_launched
+                        elif poly_b_obj == last_bird_launched.ability_polygon:
+                            active_ability_item = poly_b_obj
+                            source_bird_for_ability = last_bird_launched
+                
+                elements_to_remove_from_ability_collision = []
+
+                if active_ability_item:
+                    attacker_poly = active_ability_item # This is the ability item (e.g., bat, projectile)
+                    victim_poly = poly_b_obj if attacker_poly == poly_a_obj else poly_a_obj
+
+                    # Ability items (bats/projectiles) are typically STATIC. They damage DYNAMIC, non-"bats" polygons.
+                    # Also ensure victim_poly is not None (it should be caught by the initial check, but good practice)
+                    if victim_poly.element_type != "bats":
+                        damage_from_ability = 0
+                        apply_ability_damage = False
+                        score_for_ability_destroy = 1000
+
+                        if isinstance(source_bird_for_ability, ch.Sahur) or isinstance(source_bird_for_ability, ch.Bomb):
+                            # Sahur's bat: very low impulse threshold for damage
+                            if arbiter.total_impulse.length > 10.0:
+                                damage_from_ability = 500 # Increased damage for Sahur's bat on polygons
+                                apply_ability_damage = True
+                        elif isinstance(source_bird_for_ability, ch.Glorbo): # Glorbo's projectile (if any)
+                            pass # Glorbo no longer has a damaging projectile, this path can be removed or left empty.
+                        
+                        if apply_ability_damage and damage_from_ability > 0:
+                            victim_poly.life -= damage_from_ability
+                            if victim_poly.life <= 0:
+                                if victim_poly.in_space and victim_poly not in elements_to_remove_from_ability_collision:
+                                    elements_to_remove_from_ability_collision.append(victim_poly)
+                                    score += score_for_ability_destroy
+                                    
+                    for element in elements_to_remove_from_ability_collision:
+                        if element.in_space:
+                            space.remove(element.shape, element.body)
+                            element.in_space = False
+                            if element in columns: columns.remove(element)
+                            elif element in beams: beams.remove(element)
+                            elif element in circles: circles.remove(element)
+                            elif element in triangles: triangles.remove(element)
+                    return # Active ability collision handled, skip general poly-poly.
+
+                # --- Part 2: Handle General Polygon-on-Polygon Collisions ---
+                # This part executes if NEITHER poly_a_obj nor poly_b_obj is an ACTIVE ability item of the LATEST bird.
+                elements_to_remove_from_general_collision = []
+                impulse_strength = arbiter.total_impulse.length
+
+                # Damage poly_a_obj if it's dynamic, not "bats", and impulse is high enough
+                if poly_a_obj.body.body_type == pm.Body.DYNAMIC and poly_a_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
+                    poly_a_obj.life -= POLY_POLY_DAMAGE_VALUE
+                    print(f"DEBUG: Poly-Poly hit {poly_a_obj.material_type} {poly_a_obj.element_type} (A). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_a_obj.life:.2f}")
+                    if poly_a_obj.life <= 0 and poly_a_obj.in_space and poly_a_obj not in elements_to_remove_from_general_collision:
+                        elements_to_remove_from_general_collision.append(poly_a_obj)
+                        score += POLY_DESTROY_SCORE
+                        
+                # Damage poly_b_obj if it's dynamic, not "bats", and impulse is high enough
+                if poly_b_obj.body.body_type == pm.Body.DYNAMIC and poly_b_obj.element_type != "bats" and impulse_strength > POLY_POLY_COLLISION_IMPULSE_THRESHOLD:
+                    poly_b_obj.life -= POLY_POLY_DAMAGE_VALUE
+                    print(f"DEBUG: Poly-Poly hit {poly_b_obj.material_type} {poly_b_obj.element_type} (B). Damage: {POLY_POLY_DAMAGE_VALUE}. Remaining Life: {poly_b_obj.life:.2f}")
+                    if poly_b_obj.life <= 0 and poly_b_obj.in_space and poly_b_obj not in elements_to_remove_from_general_collision:
+                        elements_to_remove_from_general_collision.append(poly_b_obj)
+                        score += POLY_DESTROY_SCORE
+
+                for element in elements_to_remove_from_general_collision:
+                    if element.in_space: # Check again before removal
+                        space.remove(element.shape, element.body)
+                        element.in_space = False
+                        if element in columns: columns.remove(element)
+                        elif element in beams: beams.remove(element)
+                        elif element in circles: circles.remove(element)
+                        elif element in triangles: triangles.remove(element)
+
+    def post_solve_poly_ground(arbiter, space, data):
+        global columns, beams, circles, triangles, score, birds, pigs
+
+        # Identify which shape is the polygon (type 2) and which is the ground (type 3)
+        poly_shape, ground_shape = arbiter.shapes
+        if poly_shape.collision_type != 2: # Ensure poly_shape is the polygon
+            poly_shape, ground_shape = ground_shape, poly_shape
+
+        if not (poly_shape.collision_type == 2 and ground_shape.collision_type == 3):
+            return # Not a polygon-ground collision
+
+        colliding_poly_object = None
+        all_destructible_polys = columns + beams + circles + triangles
+        for poly_item in all_destructible_polys:
+            if poly_item.shape == poly_shape:
+                colliding_poly_object = poly_item
+                break
+        
+        if not colliding_poly_object or not colliding_poly_object.in_space:
+            return
+
+        # --- Check if it's an active Bomb projectile hitting the ground ---
+        active_bird = birds[-1] if birds else None
+        if active_bird and (isinstance(active_bird, ch.Bomb) or isinstance(active_bird, ch.Patapim)) and \
+           active_bird.fahigkeit_verwendet and \
+           hasattr(active_bird, 'ability_polygon') and \
+           active_bird.ability_polygon == colliding_poly_object:
+            
+            ability_projectile_obj = colliding_poly_object # Could be Bomb or Potion
+
+            if isinstance(active_bird, ch.Bomb):
+                bomb_projectile_obj = ability_projectile_obj
+                # Trigger explosion if impulse is sufficient
+                if arbiter.total_impulse.length > 10.0: # Low impulse threshold for explosion on ground
+                    print(f"DEBUG: Bomb projectile hit ground. Impulse: {arbiter.total_impulse.length:.2f}. Exploding.")
+                    
+                    explosion_center = bomb_projectile_obj.body.position
+                    explosion_radius = 130
+                    explosion_base_damage_polys = 1700
+                    explosion_base_damage_pigs = 175
+
+                    # Damage POLYGONS in the explosion radius
+                    polys_in_explosion_to_remove_locally = []
+                    for poly_item in all_destructible_polys:
+                        if poly_item == bomb_projectile_obj: continue
+                        if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec = poly_item.body.position - explosion_center
+                        distance = dist_vec.length
+                        if distance < explosion_radius:
+                            damage_falloff_factor = max(0, (explosion_radius - distance) / explosion_radius)
+                            actual_damage = explosion_base_damage_polys * damage_falloff_factor
+                            poly_item.life -= actual_damage
+                            if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                                polys_in_explosion_to_remove_locally.append(poly_item)
+                                score += POLY_DESTROY_SCORE
+
+                    # Apply KNOCKBACK to POLYGONS from Bomb Ground Explosion
+                    for poly_item in all_destructible_polys:
+                        if poly_item == bomb_projectile_obj: continue
+                        if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec_knockback = poly_item.body.position - explosion_center
+                        distance_knockback = dist_vec_knockback.length
+                        if distance_knockback < explosion_radius and distance_knockback > 0:
+                            knockback_dir = dist_vec_knockback.normalized()
+                            falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                            knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                            poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+                    
+                    # Damage PIGS in the explosion radius
+                    pigs_in_explosion_to_remove_locally = []
+                    for pig_item in pigs: 
+                        if not pig_item.body or not pig_item.shape: continue
+                        dist_vec = pig_item.body.position - explosion_center
+                        distance = dist_vec.length
+                        if distance < explosion_radius:
+                            damage_falloff_factor = max(0, (explosion_radius - distance) / explosion_radius)
+                            actual_damage = explosion_base_damage_pigs * damage_falloff_factor
+                            pig_item.life -= actual_damage
+                            if pig_item.life <= 0 and pig_item not in pigs_in_explosion_to_remove_locally:
+                                pigs_in_explosion_to_remove_locally.append(pig_item)
+                                score += PIG_KO_SCORE
+
+                    # Apply KNOCKBACK to PIGS from Bomb Ground Explosion
+                    for pig_item in pigs:
+                        if not pig_item.body or pig_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec_knockback = pig_item.body.position - explosion_center
+                        distance_knockback = dist_vec_knockback.length
+                        if distance_knockback < explosion_radius and distance_knockback > 0:
+                            knockback_dir = dist_vec_knockback.normalized()
+                            falloff_multiplier = max(0, (explosion_radius - distance_knockback) / explosion_radius)
+                            knockback_impulse_magnitude = BOMB_EXPLOSION_KNOCKBACK_BASE * falloff_multiplier
+                            pig_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                    # Remove destroyed polygons and pigs
+                    for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                        if poly_to_destroy.in_space:
+                            space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                            poly_to_destroy.in_space = False
+                            if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                            elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                            elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                            elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+                    for pig_to_destroy in pigs_in_explosion_to_remove_locally:
+                        if pig_to_destroy in pigs:
+                            space.remove(pig_to_destroy.shape, pig_to_destroy.body)
+                            pigs.remove(pig_to_destroy)
+                    
+                    # Remove the bomb projectile
+                    if bomb_projectile_obj.in_space:
+                        space.remove(bomb_projectile_obj.shape, bomb_projectile_obj.body)
+                        bomb_projectile_obj.in_space = False
+                        if bomb_projectile_obj in columns: columns.remove(bomb_projectile_obj)
+                        if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == bomb_projectile_obj:
+                            active_bird.ability_polygon = None
+                    return # Bomb explosion handled
+
+            elif isinstance(active_bird, ch.Patapim):
+                potion_obj = ability_projectile_obj
+                if arbiter.total_impulse.length > 10.0 and potion_obj.in_space: # Potion hit ground, make it explode
+                    print(f"DEBUG: Patapim's potion hit ground. Impulse: {arbiter.total_impulse.length:.2f}. Exploding.")
+                    
+                    explosion_center = potion_obj.body.position
+                    current_explosion_radius = POTION_EXPLOSION_RADIUS
+                    current_explosion_damage_polys = POTION_EXPLOSION_DAMAGE_POLYS
+                    current_explosion_damage_pigs = POTION_EXPLOSION_DAMAGE_PIGS
+                    current_explosion_knockback_base = POTION_EXPLOSION_KNOCKBACK_BASE
+
+                    # Damage POLYGONS in radius
+                    polys_in_explosion_to_remove_locally = []
+                    for poly_item in all_destructible_polys: # all_destructible_polys defined earlier
+                        if poly_item == potion_obj: continue
+                        if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec = poly_item.body.position - explosion_center
+                        distance = dist_vec.length
+                        if distance < current_explosion_radius:
+                            damage_falloff_factor = max(0, (current_explosion_radius - distance) / current_explosion_radius)
+                            actual_damage = current_explosion_damage_polys * damage_falloff_factor
+                            poly_item.life -= actual_damage
+                            if poly_item.life <= 0 and poly_item not in polys_in_explosion_to_remove_locally:
+                                polys_in_explosion_to_remove_locally.append(poly_item)
+                                score += POLY_DESTROY_SCORE
+                    
+                    # Knockback POLYGONS
+                    for poly_item in all_destructible_polys:
+                        if poly_item == potion_obj: continue
+                        if not poly_item.in_space or poly_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec_knockback = poly_item.body.position - explosion_center
+                        distance_knockback = dist_vec_knockback.length
+                        if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                            knockback_dir = dist_vec_knockback.normalized()
+                            falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                            knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                            poly_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                    # Damage PIGS in radius
+                    pigs_in_explosion_to_remove_locally = []
+                    for pig_item in pigs:
+                        if not pig_item.body or not pig_item.shape: continue
+                        dist_vec = pig_item.body.position - explosion_center
+                        distance = dist_vec.length
+                        if distance < current_explosion_radius:
+                            damage_falloff_factor = max(0, (current_explosion_radius - distance) / current_explosion_radius)
+                            actual_damage = current_explosion_damage_pigs * damage_falloff_factor
+                            pig_item.life -= actual_damage
+                            if pig_item.life <= 0 and pig_item not in pigs_in_explosion_to_remove_locally:
+                                pigs_in_explosion_to_remove_locally.append(pig_item)
+                                score += PIG_KO_SCORE
+                    
+                    # Knockback PIGS
+                    for pig_item in pigs:
+                        if not pig_item.body or pig_item.body.body_type == pm.Body.STATIC: continue
+                        dist_vec_knockback = pig_item.body.position - explosion_center
+                        distance_knockback = dist_vec_knockback.length
+                        if distance_knockback < current_explosion_radius and distance_knockback > 0:
+                            knockback_dir = dist_vec_knockback.normalized()
+                            falloff_multiplier = max(0, (current_explosion_radius - distance_knockback) / current_explosion_radius)
+                            knockback_impulse_magnitude = current_explosion_knockback_base * falloff_multiplier
+                            pig_item.body.apply_impulse_at_local_point(knockback_dir * knockback_impulse_magnitude, (0,0))
+
+                    # Remove destroyed items and the potion itself (common removal logic for potion explosion)
+                    # This will be handled by the generic removal logic for ability projectiles at the end of this handler if potion_obj is marked.
+                    # For now, let's ensure the potion is removed.
+                    if potion_obj.in_space:
+                        space.remove(potion_obj.shape, potion_obj.body)
+                        potion_obj.in_space = False
+                        if potion_obj in columns: columns.remove(potion_obj)
+                        if hasattr(active_bird, 'ability_polygon') and active_bird.ability_polygon == potion_obj:
+                            active_bird.ability_polygon = None
+
+                    for poly_to_destroy in polys_in_explosion_to_remove_locally:
+                        if poly_to_destroy.in_space:
+                            space.remove(poly_to_destroy.shape, poly_to_destroy.body)
+                            poly_to_destroy.in_space = False
+                            if poly_to_destroy in columns: columns.remove(poly_to_destroy)
+                            elif poly_to_destroy in beams: beams.remove(poly_to_destroy)
+                            elif poly_to_destroy in circles: circles.remove(poly_to_destroy)
+                            elif poly_to_destroy in triangles: triangles.remove(poly_to_destroy)
+                    for pig_to_destroy in pigs_in_explosion_to_remove_locally:
+                        if pig_to_destroy in pigs:
+                            space.remove(pig_to_destroy.shape, pig_to_destroy.body)
+                            pigs.remove(pig_to_destroy)
+                    return # Potion explosion handled
+
+        # --- If not an exploding bomb, proceed with generic polygon-ground collision damage ---
+        if colliding_poly_object.body.body_type == pm.Body.DYNAMIC and \
+           colliding_poly_object.element_type != "bats" and \
+           colliding_poly_object.element_type != "bombs": # Also ensure it's not a bomb projectile that didn't meet explosion criteria
+            # This is the original logic for regular polygons hitting the ground
+            
+            impulse_strength = arbiter.total_impulse.length
+            if impulse_strength > POLY_GROUND_IMPULSE_THRESHOLD:
+                damage_to_poly = impulse_strength * POLY_GROUND_DAMAGE_FACTOR
+                colliding_poly_object.life -= damage_to_poly
+                print(f"DEBUG: {colliding_poly_object.material_type} {colliding_poly_object.element_type} hit ground. Impulse: {impulse_strength:.2f}, Damage: {damage_to_poly:.2f}, Remaining Life: {colliding_poly_object.life:.2f}")
+
+                if colliding_poly_object.life <= 0 and colliding_poly_object.in_space:
+                    # Remove the polygon if destroyed
+                    space.remove(colliding_poly_object.shape, colliding_poly_object.body)
+                    colliding_poly_object.in_space = False
+                    if colliding_poly_object in columns: columns.remove(colliding_poly_object)
+                    elif colliding_poly_object in beams: beams.remove(colliding_poly_object)
+                    elif colliding_poly_object in circles: circles.remove(colliding_poly_object)
+                    elif colliding_poly_object in triangles: triangles.remove(colliding_poly_object)
+                    score += POLY_DESTROY_SCORE
+
 
     space.add_collision_handler(0, 1).post_solve = post_solve_bird_pig
     space.add_collision_handler(0, 2).post_solve = post_solve_bird_wood 
@@ -938,6 +1551,7 @@ def main_loop():
     space.add_collision_handler(2, 2).post_solve = post_solve_poly_vs_poly # Polygon vs Polygon
     space.add_collision_handler(1, 1).post_solve = post_solve_pig_pig # Pig (1) vs Pig (1)
     space.add_collision_handler(1, 3).post_solve = post_solve_pig_ground
+    space.add_collision_handler(2, 3).post_solve = post_solve_poly_ground
 
     t1 = 0
     c = 0
@@ -955,24 +1569,24 @@ def main_loop():
     level = Level(pigs, columns, beams, circles, triangles, space, screen_height, screen_width)
     level.load_level()
 
-    def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level):
+    def get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level, impulse_factor_to_pass):
         global bird
         if len(level.level_birds) > 0 :
             bird = level.level_birds[-1]
             if bird == "sahur":
-                bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Sahur(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "liri":
-                bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Liri(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "palocleves":
-                bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Palocleves(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "trala":
-                bird = ch.Trala(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Trala(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "glorbo":
-                bird = ch.Glorbo(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Glorbo(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "patapim":
-                bird = ch.Patapim(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Patapim(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             elif bird == "bomb":
-                bird = ch.Bomb(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level)
+                bird = ch.Bomb(mouse_distance, launch_angle, bird_x, bird_y, space, screen_height, screen_width, level, impulse_factor_to_pass)
             return bird
     
     def get_next_bird_img():
@@ -1049,7 +1663,7 @@ def main_loop():
                             t1 = time.time() * 1000
                             sx, sy = sling_anchor
 
-                            impulse_factor = 10.0
+                            impulse_factor = 60.0 # Increased significantly for a much stronger sling
                             
                             
                             impulse_x = -mouse_distance * impulse_factor * math.cos(launch_angle)
@@ -1060,7 +1674,7 @@ def main_loop():
                             bird_y = sy - 180 # Adjust vertical offset (might need scaling)
                             bird_x, bird_y = bird_x, bird_y
                             #print(f"levlebirds: {level.level_birds}")
-                            bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level)
+                            bird = get_next_bird(mouse_distance, launch_angle, bird_x, bird_y, space, level, impulse_factor)
                             
                             birds.append(bird)
                             bird_path = []
@@ -1077,12 +1691,21 @@ def main_loop():
                             can_use_ability = not active_bird.fahigkeit_verwendet
                             
                             # For non-Glorbo birds, they also must not have hit the ground
-                            if not isinstance(active_bird, ch.Glorbo):
+                            if not isinstance(active_bird, ch.Glorbo) and not isinstance(active_bird, ch.Palocleves):
                                 can_use_ability = can_use_ability and not active_bird.bird_hit_ground
                             
                             if can_use_ability:
                                 active_bird.fahigkeit()
                                 # Bird's fahigkeit() method handles setting its own 'fahigkeit_verwendet'
+                                ability_result = active_bird.fahigkeit() # Call ability
+                                if ability_result: # Check if it returned score-relevant data
+                                    if "pigs" in ability_result and ability_result["pigs"] > 0:
+                                        score += ability_result["pigs"] * PIG_KO_SCORE
+                                    if "polys" in ability_result and ability_result["polys"] > 0:
+                                        score += ability_result["polys"] * POLY_DESTROY_SCORE
+                                # Bird's fahigkeit() method itself handles setting 'fahigkeit_verwendet'
+
+
             elif game_state == 5:
                 if event.type == pg.MOUSEBUTTONUP and event.button == 1:
                     x_mouse, y_mouse = event.pos
@@ -1185,6 +1808,28 @@ def main_loop():
                                 55*scale_y + b_size_scaled[1] > y_mouse > 55*scale_y):
                             game_state = 0
                             levels_drawn = False
+                        
+                        else: 
+                            back_arrow_base_pos_x, back_arrow_base_pos_y = 30, 570
+                            back_arrow_base_width, back_arrow_base_height = 100, 60 
+
+                            scaled_back_arrow_pos_x, scaled_back_arrow_pos_y = scale_pos(back_arrow_base_pos_x, back_arrow_base_pos_y)
+                            scaled_back_arrow_width = back_arrow_base_width * scale_x
+                            scaled_back_arrow_height = back_arrow_base_height * scale_y
+
+                            back_arrow_rect = pg.Rect(
+                                scaled_back_arrow_pos_x, scaled_back_arrow_pos_y,
+                                scaled_back_arrow_width, scaled_back_arrow_height
+                            )
+
+                            
+
+                            if back_arrow_rect.collidepoint(x_mouse, y_mouse):
+                                game_state = 7
+                                levels_drawn = False
+
+
+                            
 
         if game_state == 0:
             #print(level.level_birds)
@@ -1321,12 +1966,17 @@ def main_loop():
                 
                 if not bird.bird_hit_ground: # Add to trail if bird hasn't hit ground
                     bird_path.append(p) # p is already scaled center
+        
                 
                 screen.blit(rotated_image, (blit_x, blit_y))
                 
                 if (bird.body.position.y < 0 or bird.body.position.x < -50 or
                         bird.body.position.x > screen_width + 50):
                     #print(f"bird removed (out of bounds): {bird.body.position}")
+                    if bird not in bird_to_remove: bird_to_remove.append(bird)
+                
+                # Check for Palocleves' self-destruction after explosion
+                if hasattr(bird, 'exploded') and bird.exploded and bird not in bird_to_remove:
                     bird_to_remove.append(bird)
                 
 
@@ -1685,7 +2335,7 @@ def main_loop():
                             if str(level_number) in [line.rstrip("\n") for line in f.readlines()]:
                                 screen.blit(level_font, (x + text_rect.x, y + text_rect.y))
 
-                screen.blit(back_arrow, scale_pos(10, 10))
+                screen.blit(pg.transform.scale(back_arrow,(100*scale_x,60*scale_y)), scale_pos(30, 570))
                 
                 # Menu button scaling/pos (currently commented out from blitting)
                 menu_button_scaled = pg.transform.scale(menu_button, 
@@ -1714,14 +2364,76 @@ def main_loop():
                 bird_img = pg.transform.scale(pg.transform.scale(pg.image.load(load_resource(f"./resources/images/{level.level_birds[random.randint(0,level.number_of_birds)]}.png")).convert_alpha(),(30,30)),scale_size(30,30))
             except IndexError as e:
                 pass
+
+
+            exit_button_base_pos_x, exit_button_base_pos_y = 1070, 535
+            exit_button_base_width, exit_button_base_height = 120, 120 
+
+            scaled_exit_button_pos_x, scaled_exit_button_pos_y = scale_pos(exit_button_base_pos_x, exit_button_base_pos_y)
+            scaled_exit_button_width = exit_button_base_width * scale_x
+            scaled_exit_button_height = exit_button_base_height * scale_y
+
+            exit_button_rect = pg.Rect(
+            scaled_exit_button_pos_x, scaled_exit_button_pos_y,
+            scaled_exit_button_width, scaled_exit_button_height
+            )
+
+
+
+            settings_button_base_pos_x, settings_button_base_pos_y = 970, 535
+            settings_button_base_width, settings_button_base_height = 120, 120 
+
+            scaled_settings_button_pos_x, scaled_settings_button_pos_y = scale_pos(settings_button_base_pos_x, settings_button_base_pos_y)
+            scaled_settings_button_width = settings_button_base_width * scale_x
+            scaled_settings_button_height = settings_button_base_height * scale_y
+
+            settings_button_rect = pg.Rect(
+            scaled_settings_button_pos_x, scaled_settings_button_pos_y,
+            scaled_settings_button_width, scaled_settings_button_height
+            )
+
+            
+
+            
+
             
             screen.blit(pg.transform.scale(bg, (screen_width, screen_height)), scale_pos(0, 0))
+            
                 
             
-            # Click play button
-            x_mouse, y_mouse = pg.mouse.get_pos()
-            if pg.mouse.get_pressed()[0] and (478 * scale_x < x_mouse < 711 * scale_x and 247 * scale_y < y_mouse < 400 * scale_y):
-                game_state = 6
+            # Click button
+            for event in pg.event.get():
+                if event.type == pg.MOUSEBUTTONUP and event.button == 1:
+            
+                    x_mouse, y_mouse = pg.mouse.get_pos()
+
+                    if (478 * scale_x < x_mouse < 711 * scale_x and 247 * scale_y < y_mouse < 400 * scale_y):
+                        game_state = 6
+                        settings_open = False
+
+                    elif exit_button_rect.collidepoint(x_mouse, y_mouse):
+                        pg.quit()
+                        sys.exit()
+
+                    elif settings_button_rect.collidepoint(x_mouse, y_mouse):
+                        settings_open = not settings_open
+
+                    elif settings_open:
+                        # Define the sound button's drawn area for click detection
+                        # Base position (990, 400), base drawn size (50, 50)
+                        sound_btn_draw_base_x, sound_btn_draw_base_y = 990, 400
+                        sound_btn_draw_base_w, sound_btn_draw_base_h = 50, 50
+
+                        scaled_sb_pos_x, scaled_sb_pos_y = scale_pos(sound_btn_draw_base_x, sound_btn_draw_base_y)
+                        scaled_sb_width = sound_btn_draw_base_w * scale_x
+                        scaled_sb_height = sound_btn_draw_base_h * scale_y
+                        interactive_sound_button_rect = pg.Rect(scaled_sb_pos_x, scaled_sb_pos_y, scaled_sb_width, scaled_sb_height)
+                        if interactive_sound_button_rect.collidepoint(x_mouse, y_mouse):
+                            sound_on = not sound_on
+
+                        
+                    #screen.blit(pg.transform.scale(, (screen_width, screen_height)), scale_pos(0, 0))
+                    
 
             
             
@@ -1741,7 +2453,7 @@ def main_loop():
                 
                 bird_img = pg.transform.scale(pg.image.load(bird.img), (bird.scale[0]*scale_x, bird.scale[1]*scale_y))
                 bird_img = pg.transform.rotate(bird_img, angle_degree)
-                width, height = bird_img.get_size()
+                width, height = bird.radius*2, bird.radius*2
                 rotated_image = pg.transform.rotate(bird_img, angle_degree)
                 offset = Vec2d(*rotated_image.get_size()) / 2
                 x -= offset[0]
@@ -1837,8 +2549,32 @@ def main_loop():
                 space.step(dt)
     
             screen.blit(play_button,(screen_width/2-play_button.get_width()/2,screen_height/2-play_button.get_height()/2))
+            screen.blit(pg.transform.scale(exit_button,(120,120)), scale_pos(1070, 535))
+            screen.blit(pg.transform.scale(settings_button,(120,120)), scale_pos(970, 535))
+            if settings_open:
+                # Define base position and dimensions for the settings panel
+                base_panel_x = 990
+                base_panel_y = 400
+                base_panel_width = 50
+                base_panel_height = 135
 
-            
+                # Scale the position and dimensions
+                scaled_panel_x, scaled_panel_y = scale_pos(base_panel_x, base_panel_y)
+                scaled_panel_width_float, scaled_panel_height_float = scale_size(base_panel_width, base_panel_height)
+                
+                # Convert to integers for Surface creation, ensuring they are at least 1x1
+                scaled_panel_width = max(1, int(scaled_panel_width_float))
+                scaled_panel_height = max(1, int(scaled_panel_height_float))
+
+                settings_panel_surface = pg.Surface((scaled_panel_width, scaled_panel_height), pg.SRCALPHA)
+                settings_panel_surface.fill((0, 0, 0, 100))  # Semi-transparent black (R, G, B, Alpha)
+                screen.blit(settings_panel_surface, (scaled_panel_x, scaled_panel_y))
+                if sound_on:
+                    screen.blit(pg.transform.scale(sound_button_blue, (50*scale_x, 50*scale_y)), scale_pos(990, 400))
+                else:
+                    screen.blit(pg.transform.scale(muted_sound_button_blue, (50*scale_x, 50*scale_y)), scale_pos(990, 400))
+
+                
         pg.display.flip()
         clock.tick(60)
 
