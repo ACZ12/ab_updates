@@ -298,6 +298,9 @@ class Patapim(Bird):
 
         projectile_start_pos = Vec2d(start_pos_x, final_start_pos_y)
 
+
+        
+
         new_bomb_polygon = Polygon(
             pos=projectile_start_pos,
             length=projectile_visual_size, 
@@ -308,7 +311,8 @@ class Patapim(Bird):
             screen_height=self.screen_height, screen_width=self.screen_width,
             image_path=Patapim.potion_img, # Path to the projectile's image
             radius=projectile_radius, # Physics radius of the projectile
-            mass=projectile_mass # Mass of the projectile
+            mass=projectile_mass, # Mass of the projectile
+            owner_bird=self # Pass self (Patapim instance) as the owner
         )
 
         # Set projectile's initial velocity to match the Bomb character's velocity,

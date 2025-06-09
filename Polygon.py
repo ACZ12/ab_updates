@@ -21,7 +21,7 @@ def load_resource(path):
     return os.path.join(base_path, path)
 
 class Polygon():
-    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None, image_path=None, material_type=None):
+    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None, image_path=None, material_type=None, owner_bird=None):
         self.life = life
         self.original_life = life # Store the initial life for damage state comparison
         self.element_type = element_type
@@ -29,6 +29,7 @@ class Polygon():
         self.height = height # Store for drawing, might be None for circles
         self.radius = radius # Store for drawing, only for circles
         self.material_type = material_type
+        self.owner_bird = owner_bird # Store a reference to the bird that created this polygon (if applicable)
 
         # For material-based damage textures
         self.image_subsurface_normal = None
