@@ -3,17 +3,24 @@ from pymunk import Vec2d
 import math
 import time
 import pygame as pg
-from Polygon import Polygon
-import pymunk as pm # Added for Vec2d if not already used directly by Palocleves
+import os # Import the os module
+from Polygon import Polygon # Assuming Polygon.py is in the same directory
+from utils import load_resource
+
 
 class Bird():
     
-    def __init__(self,distance,angle,x,y,space,screen_height, screen_width, level, impulse_factor=45): # Added impulse_factor
+    def __init__(self,distance,angle,x,y,space,screen_height, screen_width, level: 'Level', impulse_factor=45): # Added impulse_factor, type hint as string
         # pg.display.init() # Pygame display should be initialized once in the main game file
+        # Access the 'scale' attribute from the specific bird subclass (e.g., Sahur.scale)
+        # This 'scale' defines the bird's design dimensions in world units.
+        design_width, design_height = self.__class__.scale
+        # Use the smaller dimension to determine the radius for the circular physics body
+        physics_radius = min(design_width, design_height) / 2.0
+
         self.life = 20
         mass = 10
-        radius = 15
-        inertia = pm.moment_for_circle(mass,0,radius,(0,0))
+        inertia = pm.moment_for_circle(mass, 0, physics_radius, (0,0))
         body = pm.Body(mass,inertia)
 
         body.position = x,y
@@ -21,7 +28,7 @@ class Bird():
         impulse = power*Vec2d(1,0)
         angle = -angle
         body.apply_impulse_at_local_point(impulse.rotated(angle))
-        shape = pm.Circle(body,radius ,(0,0))
+        shape = pm.Circle(body, physics_radius, (0,0))
         shape.elasticity = 0.2 # Slightly increased elasticity
         shape.friction = 0.5
         shape.collision_type = 0
@@ -33,11 +40,10 @@ class Bird():
         self.screen_height = screen_height
         self.screen_width = screen_width
         self.level = level
-        
-        
+        self.in_water_flag = False # For water physics interaction
         
 class Sahur(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -52,11 +58,18 @@ class Sahur(Bird):
         print("fahigkeit verwendet!")
 
         # If Sahur already has an ability polygon, remove it first
-        if hasattr(self, 'ability_polygon') and self.ability_polygon and self.ability_polygon in self.level.columns:
-            if self.ability_polygon.body and self.ability_polygon.shape: # Ensure they exist
-                self.level.space.remove(self.ability_polygon.shape, self.ability_polygon.body) # Remove from Pymunk space
-            self.level.columns.remove(self.ability_polygon)
-        self.ability_polygon = None # Clear previous reference
+        if hasattr(self, 'ability_polygon') and self.ability_polygon:
+            # Remove from Pymunk space if it's there and has physics components
+            if self.ability_polygon.body and self.ability_polygon.shape and \
+               hasattr(self.level, 'space') and self.ability_polygon.shape in self.level.space.shapes:
+                self.level.space.remove(self.ability_polygon.shape, self.ability_polygon.body)
+            
+            # Remove from game list if it's there
+            if hasattr(self.level, 'columns') and self.ability_polygon in self.level.columns:
+                self.level.columns.remove(self.ability_polygon)
+            
+            self.ability_polygon = None # Clear previous reference
+
         
         # Calculate initial position with +70 x offset for Sahur's bat
         initial_pos_x = self.body.position.x + 70
@@ -79,7 +92,7 @@ class Sahur(Bird):
         self.ability_polygon_creation_time = time.time() # Record creation time
         
 class Liri(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 30
         self.fahigkeit_verwendet = False
@@ -100,7 +113,7 @@ class Liri(Bird):
 
     
 class Palocleves(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -111,7 +124,7 @@ class Palocleves(Bird):
     scale = (50,50)
 
     # Explosion parameters for Palocleves
-    EXPLOSION_RADIUS = 150 # Increased range
+    EXPLOSION_RADIUS = 200 # Increased range further
     EXPLOSION_DAMAGE_PIGS = 125    # Decreased base damage to pigs
     EXPLOSION_DAMAGE_POLYS = 1000   # Decreased base damage to polygons
     EXPLOSION_KNOCKBACK_BASE = 7500 # Base knockback impulse
@@ -131,6 +144,8 @@ class Palocleves(Bird):
         # Access lists and space from self.level
         pigs_list = self.level.pigs
         columns_list = self.level.columns
+        # Ensure beams, circles, and triangles are accessed from self.level if they exist
+        # and provide empty lists as fallbacks if not.
         beams_list = self.level.beams
         circles_list = self.level.circles
         triangles_list = self.level.triangles
@@ -198,10 +213,17 @@ class Palocleves(Bird):
             elif poly_to_remove in circles_list: circles_list.remove(poly_to_remove)
             elif poly_to_remove in triangles_list: triangles_list.remove(poly_to_remove)
 
+        # Play Palocleves' explosion sound after damage logic
+        # Assuming sound_on and bird_ability_explosion_sounds_list are accessible
+        # This part might be better handled in game.py where sounds are managed,
+        # but if direct access is intended here:
+        # if self.level.sound_on and self.level.bird_ability_explosion_sounds_list: # Example access
+        #     random.choice(self.level.bird_ability_explosion_sounds_list).play()
+
         return {"pigs": destroyed_pigs_count, "polys": destroyed_polys_count}
     
 class Trala(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -217,7 +239,7 @@ class Trala(Bird):
         self.body.velocity = (self.body.velocity.x*2, self.body.velocity.y*2)  # Stop horizontal movement
         
 class Glorbo(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -263,7 +285,7 @@ class Glorbo(Bird):
         self.body.velocity = (0, self.body.velocity.y)
 
 class Patapim(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -273,65 +295,69 @@ class Patapim(Bird):
     potion_img = "./resources/images/potion_projectile.png" # Path to the projectile's image
     
     def fahigkeit(self):
+        # This method is now primarily a placeholder if called without parameters.
+        # The actual potion launch with aiming is handled by fahigkeit_launch_potion.
         print("fahigkeit verwendet!")
         if self.fahigkeit_verwendet:
             return None
         self.fahigkeit_verwendet = True
+        # The old logic for immediate downward throw is removed.
+        # Potion creation and launch will be handled by a new method or by game.py directly
+        # passing parameters to a launch-specific method.
+        return None
+
+    def launch_potion(self, launch_angle_rad):
+        """
+        Creates and launches the potion projectile based on a given angle and fixed power.
+        This method is called from game.py when the player releases the mouse button after aiming.
+        """
+        # fahigkeit_verwendet should already be True, set when aiming started.
+
         projectile_radius = 10  # Radius for the bomb projectile
         projectile_visual_size = projectile_radius * 2 # Visual size for Polygon class
         projectile_mass = 2 # Mass for the projectile
 
-
         # Determine starting position for the projectile
-        # Spawn slightly below the Bomb character to avoid immediate self-collision
-        # and to make it look like it's being dropped.
-        # self.radius is the Bomb bird's physics radius (15)
-        vertical_offset_from_bird_center = self.radius + projectile_radius + 5 # e.g., 15 + 10 + 5 = 30
-        
-        start_pos_x = self.body.position.x
-        calculated_start_pos_y = self.body.position.y - vertical_offset_from_bird_center
-        
+        # Spawn slightly in front of Patapim based on its current orientation
+        offset_distance = self.radius + projectile_radius + 2 # Small gap
+        launch_offset_x = math.cos(self.body.angle) * offset_distance
+        launch_offset_y = math.sin(self.body.angle) * offset_distance
+
+        start_pos_x = self.body.position.x + launch_offset_x
+        start_pos_y = self.body.position.y + launch_offset_y
+
         # Ensure projectile doesn't spawn below the ground (ground is at y=130)
         ground_y_level = 130 
         min_spawn_y_center = ground_y_level + projectile_radius
-        final_start_pos_y = max(calculated_start_pos_y, min_spawn_y_center)
-
+        final_start_pos_y = max(start_pos_y, min_spawn_y_center)
         projectile_start_pos = Vec2d(start_pos_x, final_start_pos_y)
 
-
-        
-
-        new_bomb_polygon = Polygon(
+        new_potion_polygon = Polygon(
             pos=projectile_start_pos,
             length=projectile_visual_size, 
             height=projectile_visual_size, 
             space=self.level.space,
             life=1000, # Projectile life (can be adjusted for balance)
-            element_type="potions", # The projectile is a circle
+            element_type="potions", 
             screen_height=self.screen_height, screen_width=self.screen_width,
             image_path=Patapim.potion_img, # Path to the projectile's image
             radius=projectile_radius, # Physics radius of the projectile
             mass=projectile_mass, # Mass of the projectile
             owner_bird=self # Pass self (Patapim instance) as the owner
         )
-
-        # Set projectile's initial velocity to match the Bomb character's velocity,
-        # plus a small additional downward push to ensure separation.
-        # Dampen the inherited velocity to make the projectile slower overall.
-        velocity_inheritance_factor = 0.5
-        character_velocity_x = self.body.velocity.x * velocity_inheritance_factor
-        character_velocity_y = self.body.velocity.y * velocity_inheritance_factor
-        additional_downward_velocity = -100 # Reduced from -500 for a gentler drop
-
-        new_bomb_polygon.body.velocity = Vec2d(character_velocity_x, character_velocity_y + additional_downward_velocity)
         
-        self.ability_polygon = new_bomb_polygon
-        self.level.columns.append(new_bomb_polygon)
+        POTION_THROW_IMPULSE_MAGNITUDE = 1000 # Reduced throwing strength
+        impulse_vec_x = math.cos(launch_angle_rad) * POTION_THROW_IMPULSE_MAGNITUDE
+        impulse_vec_y = math.sin(launch_angle_rad) * POTION_THROW_IMPULSE_MAGNITUDE
+        new_potion_polygon.body.apply_impulse_at_local_point(Vec2d(impulse_vec_x, impulse_vec_y), (0,0))
+        
+        self.ability_polygon = new_potion_polygon # Store reference to the launched potion
+        self.level.columns.append(new_potion_polygon) # Add to a list for management (e.g. 'columns' or a new 'projectiles' list)
         return None # Score is handled by projectile's collision
         
         
 class Bomb(Bird):
-    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor): # Added impulse_factor
+    def __init__(self, distance, angle, x, y, space, screen_height, screen_width, level: 'Level', impulse_factor): # Added impulse_factor, type hint as string
         super().__init__(distance, angle, x, y, space, screen_height, screen_width, level, impulse_factor) # Pass impulse_factor
         self.radius = 15
         self.fahigkeit_verwendet = False
@@ -402,11 +428,15 @@ class Pig():
 
     def __init__(self,x,y,space,radius,type):
         self.type = type
-        if self.type in ["n11","n21","n31","n41","n51"]:
+        # Initialize life to a default value first.
+        # This ensures self.life always exists.
+        self.life = 75  # Default life for "n" series pigs
+
+        if self.type in ["n11","n21","n31","n41","n51", "n61"]: # Added "n61"
             self.life = 75 # Increased pig health
         elif self.type in ["m11","m21","m31","m41","m51"]:
             self.life = 150 # Increased pig health
-            
+        # Any other types not explicitly handled will keep the default self.life = 75
         self.mass = 5
         self.radius = radius
         inertia = pm.moment_for_circle(self.mass,0,self.radius,(0,0))
@@ -417,5 +447,76 @@ class Pig():
         self.shape.friction = 4
         self.shape.collision_type = 1 # Collision type for pigs
         space.add(self.body, self.shape) # Add pig to the physics space
+        self.in_water_flag = False # For water physics interaction
+
+
+class Explosion(pg.sprite.Sprite):
+    def __init__(self, center_pos_world, frame_folder_path, frame_duration_ms, scale_factor_tuple_px, to_pygame_func):
+        super().__init__()
+        self.frames = []
+        self.load_frames(frame_folder_path)
+        if not self.frames:
+            print(f"Warning: No frames loaded for explosion from {frame_folder_path}")
+            self.is_finished = True # Mark as finished if no frames
+            self.image = pg.Surface((0,0)) # Dummy image
+            self.rect = self.image.get_rect()
+            return
+
+        self.current_frame_index = 0
+        self.image = self.frames[self.current_frame_index]
+        
+        self.center_pos_screen = to_pygame_func(center_pos_world)
+        self.rect = self.image.get_rect(center=self.center_pos_screen)
+        
+        self.frame_duration = frame_duration_ms / 1000.0 # Convert ms to seconds
+        self.last_frame_update_time = time.time()
+        self.is_finished = False
+
+        self.scale_frames(scale_factor_tuple_px)
+
+    def load_frames(self, folder_path):
+        try:
+            resolved_folder_path = load_resource(folder_path)
+            if os.path.isdir(resolved_folder_path):
+                # Sorts frames based on the number at the end of the filename,
+                # e.g., exp_0.png, exp_1.png, animation_frame_10.png.
+                # The prefix before the underscore can vary.
+                filenames = sorted(
+                    [f for f in os.listdir(resolved_folder_path) if f.lower().endswith(('.png', '.jpg', '.jpeg'))],
+                    key=lambda x: int(os.path.splitext(x)[0].split('_')[-1]) 
+                )
+                for filename in filenames:
+                    full_path = os.path.join(resolved_folder_path, filename)
+                    try:
+                        frame = pg.image.load(full_path).convert_alpha()
+                        self.frames.append(frame)
+                    except pg.error as e:
+                        print(f"Warning: Could not load explosion frame {filename}: {e}")
+            else:
+                print(f"Warning: Explosion frames folder not found: {resolved_folder_path}")
+        except Exception as e:
+            print(f"Error accessing explosion frames folder '{folder_path}': {e}")
+
+    def scale_frames(self, scale_factor_tuple_px):
+        scaled_frames_temp = [pg.transform.scale(frame, scale_factor_tuple_px) for frame in self.frames]
+        self.frames = scaled_frames_temp
+        if self.frames: # Ensure frames list is not empty after scaling
+            self.image = self.frames[self.current_frame_index]
+            self.rect = self.image.get_rect(center=self.rect.center)
+
+    def update(self):
+        if self.is_finished or not self.frames:
+            return
+
+        current_time = time.time()
+        if current_time - self.last_frame_update_time > self.frame_duration:
+            self.current_frame_index += 1
+            if self.current_frame_index >= len(self.frames):
+                self.is_finished = True
+                self.kill() # Remove from all sprite groups if finished
+            else:
+                self.image = self.frames[self.current_frame_index]
+                self.rect = self.image.get_rect(center=self.rect.center) # Keep centered
+                self.last_frame_update_time = current_time
         
         

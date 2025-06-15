@@ -1,25 +1,10 @@
 import os
 import subprocess
 import sys
-import time
 import urllib.request
-from tkinter import messagebox, Tk
+from tkinter import messagebox, Tk # Keep Tk for messagebox
 import game
-
-def load_resource(path):
-    """
-    Helper to get resource paths, works for normal run & PyInstaller bundle.
-    Also handles if the path is already absolute.
-    """
-    if os.path.isabs(path): # If path is already absolute, return it directly
-        return path
-    if hasattr(sys, '_MEIPASS'):
-        # PyInstaller bundles stuff here
-        base_path = sys._MEIPASS
-    else:
-        # Normal execution path
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, path)
+from utils import load_resource
 
 def check_wifi_available():
     try:
@@ -76,7 +61,7 @@ def restart_application(app_name):
     try:
         if sys.platform.startswith("win"):
             subprocess.Popen([sys.executable, app_name])  # Use sys.executable
-        else:
+        else: # pragma: no cover
             subprocess.Popen(["python3", app_name]) #TODO: check if this works for other OS
         sys.exit()
     except Exception as e:
@@ -98,8 +83,8 @@ def main():
         with open(load_resource("version.txt"), "r") as f:
             current_version = f.read().strip()
     except FileNotFoundError:
-        print("version.txt not found. Assuming version 0.0.0")
-    app_name = "game.py"  
+        print("version.txt not found. Assuming version 0.0.0 for update check.")
+    app_name = "main.py" # Should be main.py if restarting the current script
     root = Tk()
     root.withdraw()
 
@@ -122,32 +107,66 @@ def main():
                         )  
                         if extract_update(zip_file_path, install_dir):
                             cleanup_temp_files(temp_dir)
-                            messagebox.showinfo(
-                                "Update Successful",
-                                "The application will be updated and restarted.",
-                            )
+                            # messagebox.showinfo( # Commented out for silent restart
+                            #     "Update Successful",
+                            #     "The application will be updated and restarted.",
+                            # )
                             restart_application(app_name)
-                        else:
+                        else: # pragma: no cover
                             cleanup_temp_files(temp_dir)
                             messagebox.showerror(
                                 "Update Error",
                                 "Error extracting the update.",
                             )
-                    else:
+                            # Fall through to run current version after error message
+                            pass
+                    else: # pragma: no cover
                          cleanup_temp_files(temp_dir)
+                         messagebox.showerror("Update Error", "Error downloading the update.")
+                         # Fall through to run current version
+                         pass
                 else:
-                    game.main_loop() # User chose not to update
-            else:
-                game.main_loop()
-        else:
-            game.main_loop()
-    else:
+                    print("User declined update. Starting current version.")
+                    # Fall through to run current version
+                    pass
+            else: # Already latest version or no new version found
+                print("Application is up to date or no new version found. Starting current version.")
+                # Fall through to run current version
+                pass
+        else: # Could not get latest version from server
+            print("Could not retrieve latest version information. Starting current version.")
+            # Fall through to run current version
+            pass
+    else: # No Wi-Fi
         messagebox.showinfo(
             "No Wi-Fi", # "Nincs WLAN" is Hungarian for "No WLAN"
             "No Wi-Fi connection available. The application will be started without checking for updates.",
         )
-        game.main_loop()
+        # Fall through to run current version
+        pass
 
-    
+    # --- Unified Game Launch ---
+    try:
+        game.main_loop()
+    except Exception as e:
+        print("----------------------------------------------------")
+        print("AN UNHANDLED ERROR OCCURRED IN THE GAME:")
+        print("----------------------------------------------------")
+        import traceback
+        traceback.print_exc()
+        print("----------------------------------------------------")
+        # Try to show a Tkinter message box, but it might fail if Tk is already problematic
+        try:
+            root_err = Tk() # Create a new root for the error message if the old one is gone
+            root_err.withdraw()
+            messagebox.showerror("Critical Game Error", f"A critical error occurred and the game had to close:\n\n{e}\n\nPlease check the console for more details.")
+            root_err.destroy()
+        except Exception as tk_e:
+            print(f"Could not display Tkinter error message: {tk_e}")
+        sys.exit(1) # Exit with an error code
+    finally:
+        if 'root' in locals() and root.winfo_exists(): # Check if root was defined and still exists
+            root.destroy() # Ensure Tkinter root is destroyed
+
 if __name__ == "__main__":
     main()

@@ -2,26 +2,10 @@ import pymunk as pm
 import pygame as pg
 from pymunk import Vec2d
 import math
-import sys
-import os
-
-def load_resource(path):
-    """
-    Helper to get resource paths, works for normal run & PyInstaller bundle.
-    Also handles if the path is already absolute.
-    """
-    if os.path.isabs(path): # If path is already absolute, return it directly
-        return path
-    if hasattr(sys, '_MEIPASS'):
-        # PyInstaller bundles stuff here
-        base_path = sys._MEIPASS
-    else:
-        # Normal execution path
-        base_path = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_path, path)
+from utils import load_resource
 
 class Polygon():
-    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None, image_path=None, material_type=None, owner_bird=None):
+    def __init__(self, pos, length, height, space, life, element_type, screen_height, screen_width, mass=5.0, radius=15.0, triangle_points=None, image_path=None, material_type=None, owner_bird=None, is_explosive_obj=False, explosion_params=None):
         self.life = life
         self.original_life = life # Store the initial life for damage state comparison
         self.element_type = element_type
@@ -31,6 +15,16 @@ class Polygon():
         self.material_type = material_type
         self.owner_bird = owner_bird # Store a reference to the bird that created this polygon (if applicable)
 
+        self.is_explosive = is_explosive_obj
+        self.has_exploded = False
+        if self.is_explosive and explosion_params:
+            self.explosion_radius = explosion_params.get("radius", 100)
+            self.explosion_damage_pigs = explosion_params.get("damage_pigs", 150)
+            self.explosion_damage_polys = explosion_params.get("damage_polys", 1000)
+            self.explosion_knockback_base = explosion_params.get("knockback", 6000)
+        elif self.is_explosive: # Default explosion params if not provided
+            print(f"Warning: Explosive polygon '{element_type}' created without specific explosion_params. Using defaults.")
+            self.explosion_radius, self.explosion_damage_pigs, self.explosion_damage_polys, self.explosion_knockback_base = 100, 150, 1000, 6000
         # For material-based damage textures
         self.image_subsurface_normal = None
         self.image_subsurface_damaged = None
@@ -42,7 +36,6 @@ class Polygon():
         self.original_image = None
 
         # Define sub-rectangles for textures (used if uses_material_damage_textures)
-        # USER ACTION: CRITICAL - Verify these rectangles match your spritesheet layouts!
         # Format: pg.Rect(left, top, width, height)
         rects_wood = {
             "beams": pg.Rect(131, 301, 23, 247),    # Original: 154-131, 548-301
@@ -56,10 +49,6 @@ class Polygon():
             "circles": pg.Rect(44, 247, 38, 40),   # Original: 82-44, 287-247
             "triangles": pg.Rect(165, 106, 76, 87) # Original: 241-165, 193-106
         }
-        # USER ACTION: Define specific rects for ice if ice.png/ice_dmg1.png
-        # have a different layout than wood3.png.
-        # These are placeholders assuming ice uses a similar layout to wood.
-        # If your ice spritesheets are different, these MUST be changed.
         rects_ice = {
             "beams": pg.Rect(131, 301, 23, 247),    # Placeholder, verify!
             "columns": pg.Rect(131, 301, 23, 247),  # Placeholder, verify!
@@ -68,27 +57,46 @@ class Polygon():
         }
 
         if image_path: # Priority 1: If an explicit image_path is given, use it.
-            self.original_image = pg.image.load(load_resource(image_path)).convert_alpha()
-        elif element_type == "bats": # Bats *must* have an image_path.
-            raise ValueError("image_path must be provided for 'bats' element_type")
+            try:
+                self.original_image = pg.image.load(load_resource(image_path)).convert_alpha()
+            except pg.error as e:
+                print(f"FATAL: Pygame error loading image from image_path '{image_path}' for element_type '{element_type}': {e}")
+                # This is a critical error, so re-raising it will stop the game
+                # and print the error to the console, which is more informative.
+                raise
         elif self.material_type and element_type in ["columns", "beams", "circles", "triangles"]:
             self.uses_material_damage_textures = True
             spritesheet_normal_full = None
             spritesheet_damaged_full = None
             mat_rects = None
+            
+            paths_to_load = {}
+            error_material_type = self.material_type # For error message
 
             if self.material_type == "wood":
-                spritesheet_normal_full = pg.image.load(load_resource("./resources/images/wood3.png")).convert_alpha()
-                spritesheet_damaged_full = pg.image.load(load_resource("./resources/images/wood3_dmg1.png")).convert_alpha()
+                paths_to_load["normal"] = "./resources/images/wood3.png"
+                paths_to_load["damaged"] = "./resources/images/wood3_dmg1.png"
                 mat_rects = rects_wood
             elif self.material_type == "stone":
-                spritesheet_normal_full = pg.image.load(load_resource("./resources/images/stone.png")).convert_alpha()
-                spritesheet_damaged_full = pg.image.load(load_resource("./resources/images/stone_dmg1.png")).convert_alpha()
+                paths_to_load["normal"] = "./resources/images/stone.png"
+                paths_to_load["damaged"] = "./resources/images/stone_dmg1.png"
                 mat_rects = rects_stone
             elif self.material_type == "ice":
-                spritesheet_normal_full = pg.image.load(load_resource("./resources/images/ice.png")).convert_alpha()
-                spritesheet_damaged_full = pg.image.load(load_resource("./resources/images/ice_dmg1.png")).convert_alpha()
+                paths_to_load["normal"] = "./resources/images/ice.png"
+                paths_to_load["damaged"] = "./resources/images/ice_dmg1.png"
                 mat_rects = rects_ice
+            else:
+                error_material_type = f"unknown material '{self.material_type}'"
+
+            try:
+                if "normal" in paths_to_load and paths_to_load["normal"]:
+                    spritesheet_normal_full = pg.image.load(load_resource(paths_to_load["normal"])).convert_alpha()
+                if "damaged" in paths_to_load and paths_to_load["damaged"]:
+                    spritesheet_damaged_full = pg.image.load(load_resource(paths_to_load["damaged"])).convert_alpha()
+            except pg.error as e:
+                failed_path = paths_to_load.get("normal") if "normal" in paths_to_load else paths_to_load.get("damaged", "unknown path")
+                print(f"FATAL: Pygame error loading material spritesheet '{failed_path}' for {error_material_type} ({element_type}): {e}")
+                raise # Re-raise critical error
 
             if spritesheet_normal_full and spritesheet_damaged_full and mat_rects and element_type in mat_rects:
                 sub_rect = mat_rects[element_type]
@@ -97,8 +105,13 @@ class Polygon():
                 if element_type == "beams": # Beams are pre-rotated
                     self.image_subsurface_normal = pg.transform.rotate(self.image_subsurface_normal, 90)
                     self.image_subsurface_damaged = pg.transform.rotate(self.image_subsurface_damaged, 90)
-            # self.original_image is not set here; draw_poly will use the subsurfaces.
-        # else: self.original_image remains None if no explicit path and not a handled material type.
+            elif self.material_type and element_type in ["columns", "beams", "circles", "triangles"]:
+                 # This case means material spritesheets might have loaded, but sub_rect was not found or some other issue.
+                print(f"Warning: Could not prepare material textures for {self.material_type} {element_type}. Check rects_xxx definitions and spritesheet content.")
+        elif element_type in ["bats"] and not image_path:
+             raise ValueError(f"image_path must be provided for '{element_type}' element_type")
+        else: # No explicit image_path and not a material type that loads its own image.
+            self.original_image = None # Explicitly set to None if no image is loaded.
 
         current_body = None
         current_shape = None
@@ -120,7 +133,7 @@ class Polygon():
             current_body.position = Vec2d(*pos)
             current_shape = pm.Poly(current_body, bat_box_points)
             current_shape.friction = 0.5 # Bat-specific friction
-            # self.original_image is already handled by the unified logic above.
+            # self.original_image is handled by the unified logic above if image_path is provided.
 
         elif element_type in ["columns", "beams"]: # Handles rectangular dynamic objects
             moment = pm.moment_for_box(mass, (length, height))
@@ -128,7 +141,7 @@ class Polygon():
             current_body.position = Vec2d(*pos)
             current_shape = pm.Poly.create_box(current_body, (length, height))
 
-        elif element_type in ["circles", "bombs", "potions"]:
+        elif element_type in ["circles", "bombs", "potions", "exploding_crate"]: # Added exploding_crate
             moment = pm.moment_for_circle(mass, 0, radius, (0,0))
             current_body = pm.Body(mass, moment)
             current_body.position = Vec2d(*pos)
@@ -162,8 +175,11 @@ class Polygon():
             raise ValueError(f"Unsupported element_type: {element_type}")
 
         # Common properties for all shapes
-        if element_type != "bats": # Bats have their specific friction set above
-            current_shape.friction = 1
+        if element_type == "exploding_crate":
+            current_shape.friction = 1.5 # Higher friction for stability
+        elif element_type not in ["bats"]: # Bats have their friction set where they are created
+            current_shape.friction = 1.0 # Default for other dynamic polys
+        # Note: "bats" type polygons have their friction set to 0.5 where they are defined.
         current_shape.collision_type = 2 # All polygons (including bats) are type 2
 
         self.body = current_body
@@ -293,19 +309,54 @@ class Polygon():
 class Static_line():
     def __init__(self,screen_width,screen_height,space):
         self.space = space
-        self.base_width = 1200
+        self.base_width = 1200 # Pymunk world width for the ground
         self.base_height = 650
         self.scale_x = screen_width / self.base_width
         self.scale_y = screen_height / self.base_height
-        self.static_body = pm.Body(body_type=pm.Body.STATIC)
-        self.static_lines = [pm.Segment(self.static_body, (0.0, 130.0), (1200.0, 130.0), 0.0)]
-        for line in self.static_lines:
+        self.body = space.static_body # Use the space's built-in static body
+        self.static_lines = []
+        self.build_lines() # Build the initial default line
+
+    def build_lines(self, loch_extent_x=None):
+        # Remove existing lines from space and clear the list
+        if self.static_lines:
+            self.space.remove(*self.static_lines)
+            self.static_lines.clear()
+
+        ground_y = 130.0
+        world_width = self.base_width # Use the Pymunk world width
+        
+        gap_start_x_internal = None
+        gap_end_x_internal = None
+
+        if loch_extent_x and isinstance(loch_extent_x, (list, tuple)) and len(loch_extent_x) == 2:
+            gap_start_x_internal = loch_extent_x[0]
+            gap_end_x_internal = loch_extent_x[1]
+            # Basic validation: ensure start < end and within bounds.
+            if not (0 <= gap_start_x_internal < gap_end_x_internal <= world_width):
+                gap_start_x_internal = None # Invalidate if checks fail
+                gap_end_x_internal = None
+
+        new_lines_to_add = []
+        # Check if valid gap parameters are provided
+        if gap_start_x_internal is not None and gap_end_x_internal is not None:
+            # Create line before the gap
+            if gap_start_x_internal > 0:
+                new_lines_to_add.append(pm.Segment(self.body, (0.0, ground_y), (gap_start_x_internal, ground_y), 0.0))
+            
+            # Create line after the gap
+            if gap_end_x_internal < world_width:
+                new_lines_to_add.append(pm.Segment(self.body, (gap_end_x_internal, ground_y), (world_width, ground_y), 0.0))
+        else:
+            # Default: single continuous line
+            new_lines_to_add.append(pm.Segment(self.body, (0.0, ground_y), (world_width, ground_y), 0.0))
+        
+        for line in new_lines_to_add:
             line.elasticity = 0.95
             line.collision_type = 3 # Collision type for ground
             line.friction = 1
-        self.space.add(self.static_body, *self.static_lines)
-        
-        
-    
+            self.static_lines.append(line)
+        self.space.add(*self.static_lines)
+
     def scale_pos(self, x, y):
         return x * self.scale_x, y * self.scale_y
