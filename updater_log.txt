@@ -1,23 +1,14 @@
-2025-06-15 18:12:45,488 - INFO - --- __main__ BLOCK ENTERED (main.py) ---
-2025-06-15 18:12:45,488 - INFO - --- MAIN FUNCTION ENTERED (main.py) ---
-2025-06-15 18:12:45,488 - DEBUG - Attempting to load local version.txt...
-2025-06-15 18:12:45,489 - DEBUG - Local version loaded: 1.0
-2025-06-15 18:12:45,489 - DEBUG - --- Initial variable assignments in main() complete ---
-2025-06-15 18:12:45,489 - DEBUG - Initializing Tkinter for message boxes...
-2025-06-15 18:12:45,549 - DEBUG - Tkinter initialized and withdrawn.
-2025-06-15 18:12:45,550 - DEBUG - Checking Wi-Fi availability...
-2025-06-15 18:12:45,704 - DEBUG - Wi-Fi check returned True. Proceeding to get latest version.
-2025-06-15 18:12:45,705 - DEBUG - Attempting to fetch latest version from: https://ACZ12.github.io/ab_updates/version.txt
-2025-06-15 18:12:45,743 - DEBUG - Successfully fetched and validated latest version: '2.0'
-2025-06-15 18:12:45,743 - DEBUG - Fetched latest version string: 2.0. Current version string: 1.0.
-2025-06-15 18:12:45,743 - INFO - Update available. Local: 1.0 (1, 0), Latest: 2.0 (2, 0). Preparing to ask user.
-2025-06-15 18:12:46,954 - INFO - User chose to update.
-2025-06-15 18:12:46,956 - DEBUG - Downloading update to temp_dir: C:\Users\suni\AppData\Local\Temp\tmpub69sp70
-2025-06-15 18:12:46,956 - DEBUG - Attempting to download update from: https://ACZ12.github.io/ab_updates/latest.zip to C:\Users\suni\AppData\Local\Temp\tmpub69sp70\latest.zip
-2025-06-15 18:12:48,764 - INFO - Update successfully downloaded to C:\Users\suni\AppData\Local\Temp\tmpub69sp70\latest.zip
-2025-06-15 18:12:48,764 - DEBUG - Update downloaded to: C:\Users\suni\AppData\Local\Temp\tmpub69sp70\latest.zip
-2025-06-15 18:12:48,764 - DEBUG - Extracting update to install_dir: C:\Users\suni\Documents\ab_updates
-2025-06-15 18:12:48,764 - DEBUG - Attempting to extract C:\Users\suni\AppData\Local\Temp\tmpub69sp70\latest.zip to C:\Users\suni\Documents\ab_updates
-2025-06-15 18:12:48,888 - INFO - Successfully extracted C:\Users\suni\AppData\Local\Temp\tmpub69sp70\latest.zip to C:\Users\suni\Documents\ab_updates
-2025-06-15 18:12:48,888 - INFO - Update extracted successfully.
-2025-06-15 18:12:48,890 - INFO - Restarting application for update.
+2025-06-15 19:12:33,001 - INFO - --- __main__ BLOCK ENTERED (main.py) ---
+2025-06-15 19:12:33,001 - INFO - --- MAIN FUNCTION ENTERED (main.py) ---
+2025-06-15 19:12:33,002 - DEBUG - Attempting to load local version.txt...
+2025-06-15 19:12:33,002 - DEBUG - Local version loaded: 3.0
+2025-06-15 19:12:33,002 - DEBUG - --- Initial variable assignments in main() complete ---
+2025-06-15 19:12:33,002 - DEBUG - Initializing Tkinter for message boxes...
+2025-06-15 19:12:33,053 - DEBUG - Tkinter initialized and withdrawn.
+2025-06-15 19:12:33,053 - DEBUG - Checking Wi-Fi availability...
+2025-06-15 19:12:33,202 - DEBUG - Wi-Fi check returned True. Proceeding to get latest version.
+2025-06-15 19:12:33,203 - DEBUG - Attempting to fetch latest version from: https://ACZ12.github.io/ab_updates/version.txt
+2025-06-15 19:12:33,380 - DEBUG - Successfully fetched and validated latest version: '2.0'
+2025-06-15 19:12:33,380 - DEBUG - Fetched latest version string: 2.0. Current version string: 3.0.
+2025-06-15 19:12:33,380 - INFO - Application is up to date or no new version found. Local: 3.0, Latest: 2.0.
+2025-06-15 19:12:33,380 - INFO - Proceeding to import game module and launch game.
